@@ -58,6 +58,50 @@ function sydneyTodayStr() {
   return `${y}-${m}-${d}`;
 }
 
+// ---------- plain calendar-date arithmetic (UTC-based, no timezone surprises) ----------
+function parseYMD(s) {
+  const [y, m, d] = s.split("-").map(Number);
+  return Date.UTC(y, m - 1, d);
+}
+function toYMD(ms) {
+  const d = new Date(ms);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function shiftDateStr(s, days) {
+  return toYMD(parseYMD(s) + days * 86400000);
+}
+function mondayOfStr(s) {
+  const ms = parseYMD(s);
+  const dow = new Date(ms).getUTCDay(); // 0 = Sun ... 6 = Sat
+  const diff = dow === 0 ? -6 : 1 - dow;
+  return toYMD(ms + diff * 86400000);
+}
+
+// ---------- semester config -> restricted-week ranges ----------
+// Each configured semester becomes a [bufferBefore, bufferAfter] range of
+// Mondays: the week before the semester starts and the week after it ends
+// are included too, since those weeks pair with a study week in the
+// rolling fortnight and are still subject to the cap.
+function buildRestrictedRanges(semesterData) {
+  const ranges = [];
+  for (const val of Object.values(semesterData || {})) {
+    if (!val || !val.start || !val.end) continue;
+    const teachStartMonday = mondayOfStr(val.start);
+    const teachEndMonday = mondayOfStr(val.end);
+    ranges.push({
+      bufferBefore: shiftDateStr(teachStartMonday, -7),
+      bufferAfter: shiftDateStr(teachEndMonday, 7)
+    });
+  }
+  return ranges;
+}
+function isRestrictedWeek(weekMonday, ranges) {
+  return ranges.some(r => weekMonday >= r.bufferBefore && weekMonday <= r.bufferAfter);
+}
+
 // ---------- build & send one Web Push request ----------
 async function sendWebPush({ endpoint, p256dh, auth }, env, payloadObj) {
   const payloadBytes = new TextEncoder().encode(JSON.stringify(payloadObj));
@@ -125,46 +169,103 @@ async function sendWebPush({ endpoint, p256dh, auth }, env, payloadObj) {
   return res;
 }
 
-async function runCheck(env, force) {
-  // Only actually proceed at 8pm Sydney time (the two UTC cron slots
-  // below cover both sides of Sydney's daylight-saving shift — this
-  // guard makes sure only the correct one of the two actually fires).
-  if (!force && sydneyHourNow() !== 20) return { sent: false, reason: "not 8pm Sydney yet" };
-
-  const entriesRaw = await env.HOURS_KV.get(`entries:${SYNC_USER}`);
-  const entries = entriesRaw ? JSON.parse(entriesRaw) : [];
-  const today = sydneyTodayStr();
-  const loggedToday = entries.some(e => e.date === today);
-  if (loggedToday) return { sent: false, reason: "already logged today" };
-
-  const subsRaw = await env.HOURS_KV.get(`subs:${SYNC_USER}`);
-  const subs = subsRaw ? JSON.parse(subsRaw) : [];
-  if (subs.length === 0) return { sent: false, reason: "no subscriptions" };
-
-  const payload = {
-    title: "Fortnight",
-    body: "No hours logged today — add today's shift before it slips your mind."
-  };
-
+// Sends one payload to every subscription, drops dead ones (404/410),
+// keeps ones that failed for other reasons (transient network issues
+// shouldn't cause us to un-subscribe someone). Returns the pruned list
+// plus how many sends actually succeeded.
+async function sendToAll(subs, env, payload) {
   const stillValid = [];
   let sentCount = 0;
   for (const sub of subs) {
     try {
       const res = await sendWebPush(sub, env, payload);
-      // 404/410 = subscription is dead (uninstalled, permission revoked) — drop it
       if (res.status !== 404 && res.status !== 410) {
         stillValid.push(sub);
         if (res.ok) sentCount++;
       }
     } catch (e) {
-      stillValid.push(sub); // network hiccup — keep it, don't drop on a transient error
+      stillValid.push(sub);
     }
   }
+  return { stillValid, sentCount };
+}
 
-  if (stillValid.length !== subs.length) {
-    await env.HOURS_KV.put(`subs:${SYNC_USER}`, JSON.stringify(stillValid));
+async function runCheck(env, force) {
+  // Only actually proceed at 8pm Sydney time (the two UTC cron slots
+  // cover both sides of Sydney's daylight-saving shift — this guard
+  // makes sure only the correct one of the two actually fires).
+  if (!force && sydneyHourNow() !== 20) {
+    return { ran: false, reason: "not 8pm Sydney yet" };
   }
-  return { sent: true, sentCount, totalSubs: subs.length };
+
+  const today = sydneyTodayStr();
+  const todayMonday = mondayOfStr(today);
+  const prevWeekMonday = shiftDateStr(todayMonday, -7);
+
+  const semRaw = await env.HOURS_KV.get(`semesters:${SYNC_USER}`);
+  const semesterData = semRaw ? JSON.parse(semRaw) : {};
+  const ranges = buildRestrictedRanges(semesterData);
+
+  const restrictedNow = isRestrictedWeek(todayMonday, ranges);
+  const restrictedPrevWeek = isRestrictedWeek(prevWeekMonday, ranges);
+
+  let subsRaw = await env.HOURS_KV.get(`subs:${SYNC_USER}`);
+  let subs = subsRaw ? JSON.parse(subsRaw) : [];
+
+  const stateRaw = await env.HOURS_KV.get(`reminder-state:${SYNC_USER}`);
+  const state = stateRaw ? JSON.parse(stateRaw) : {};
+
+  const result = { ran: true, restrictedNow, boundaryNotice: null, dailyReminder: null };
+  let subsChanged = false;
+
+  // ---- 1. boundary transition notice ----
+  // Fires once, on the Monday the restricted status actually flips.
+  // (force=1 bypasses the "already sent today" guard too, so you can
+  // re-test as many times as you like without waiting for a new day.)
+  const boundaryAlreadySentToday = state.lastBoundaryNoticeDate === today;
+  if (today === todayMonday && restrictedNow !== restrictedPrevWeek && (force || !boundaryAlreadySentToday)) {
+    const payload = restrictedNow
+      ? { title: "Fortnight", body: "The 48-hour fortnight cap is back in effect from today." }
+      : { title: "Fortnight", body: "Uni break has started — no work-hour limit until the cap kicks back in." };
+    if (subs.length > 0) {
+      const { stillValid, sentCount } = await sendToAll(subs, env, payload);
+      if (stillValid.length !== subs.length) { subs = stillValid; subsChanged = true; }
+      result.boundaryNotice = { type: restrictedNow ? "restriction-started" : "restriction-lifted", sentCount };
+    } else {
+      result.boundaryNotice = { type: restrictedNow ? "restriction-started" : "restriction-lifted", sentCount: 0, note: "no subscriptions" };
+    }
+    state.lastBoundaryNoticeDate = today;
+  }
+
+  // ---- 2. daily "log your hours" reminder — only during restricted weeks ----
+  const dailyAlreadySentToday = state.lastDailyReminderDate === today;
+  if (restrictedNow && (force || !dailyAlreadySentToday)) {
+    const entriesRaw = await env.HOURS_KV.get(`entries:${SYNC_USER}`);
+    const entries = entriesRaw ? JSON.parse(entriesRaw) : [];
+    const loggedToday = entries.some(e => e.date === today);
+    if (!loggedToday) {
+      if (subs.length > 0) {
+        const payload = { title: "Fortnight", body: "No hours logged today — add today's shift before it slips your mind." };
+        const { stillValid, sentCount } = await sendToAll(subs, env, payload);
+        if (stillValid.length !== subs.length) { subs = stillValid; subsChanged = true; }
+        result.dailyReminder = { sent: true, sentCount };
+      } else {
+        result.dailyReminder = { sent: false, reason: "no subscriptions" };
+      }
+    } else {
+      result.dailyReminder = { sent: false, reason: "already logged today" };
+    }
+    state.lastDailyReminderDate = today;
+  } else if (!restrictedNow) {
+    result.dailyReminder = { sent: false, reason: "not a restricted week — no cap applies" };
+  }
+
+  if (subsChanged) {
+    await env.HOURS_KV.put(`subs:${SYNC_USER}`, JSON.stringify(subs));
+  }
+  await env.HOURS_KV.put(`reminder-state:${SYNC_USER}`, JSON.stringify(state));
+
+  return result;
 }
 
 export default {
