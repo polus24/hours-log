@@ -8,8 +8,8 @@ namespace. No build step, no framework, nothing to `npm install`.
 
 A URL like `hours-log.pages.dev` (or your own domain) that works on any
 phone or PC, with data stored on Cloudflare rather than in the browser.
-Everyone who opens the link automatically sees the same shared log —
-no codes, accounts, or setup needed per device.
+Everyone who opens the link and enters the shared PIN sees the same log —
+no accounts, no per-device setup.
 
 ---
 
@@ -54,29 +54,51 @@ no codes, accounts, or setup needed per device.
 
 ## 4. Bind KV to the Pages project
 
-1. Go to your Pages project → **Settings** → **Functions**.
-2. Under **KV namespace bindings**, click **Add binding**.
-3. Variable name: `HOURS_KV` (must match exactly — that's what `entries.js` expects).
-4. KV namespace: select the `HOURS_KV` you just created.
-5. Save.
-6. Trigger a new deployment so the binding takes effect — easiest way is
-   **Deployments** → **⋯** on the latest one → **Retry deployment**.
+1. Go to your Pages project → **Settings** → **Bindings**.
+2. Click **Add**.
+3. Select **KV namespace**.
+4. Variable name: `HOURS_KV` (must match exactly — that's what `entries.js` expects).
+5. KV namespace: select the `HOURS_KV` you just created.
+6. Save.
 
-## 5. (Optional) Custom domain
+## 5. Set the shared PIN
+
+This is what stops anyone but your household from seeing or entering data.
+
+1. Same **Settings → Bindings** page → **Add** → this time choose
+   **Environment variable / Secret** (Cloudflare may just call it "Variable").
+2. Variable name: `APP_PIN`
+3. Value: your chosen PIN, e.g. `4821`. Use **Secret** / "Encrypt" if offered,
+   so it's not visible in the dashboard afterwards.
+4. Save.
+
+Until you do this step, the site works with **no PIN required at all** —
+that's deliberate, so it's usable while you're still setting things up.
+Once `APP_PIN` is set and deployed, every device needs that PIN to load or
+save any data.
+
+## 6. Redeploy so it all takes effect
+
+1. **Deployments** tab → latest deployment → **⋯** → **Retry deployment**.
+
+This picks up both the KV binding and the PIN.
+
+## 7. (Optional) Custom domain
 
 If you already manage a domain on Cloudflare: Pages project → **Custom domains**
 → **Set up a custom domain** → follow the prompt. It's typically automatic
 since Cloudflare already controls the DNS.
 
-## 6. Using it
+## Using it
 
-Just open the `pages.dev` URL (or your custom domain) on any phone or PC —
-his, yours, your wife's. They all read and write the same shared log
-automatically, nothing to enter or copy.
+Open the `pages.dev` URL (or your custom domain) on any phone or PC — his,
+yours, your wife's. First visit on each device asks for the PIN; enter it
+once and that device stays unlocked (stored locally in the browser) until
+someone taps **Lock** in the top corner. Everyone who's entered the PIN
+reads and writes the same shared log automatically.
 
-There's no login or access control at all, so anyone with the link can
-see and edit the data. That's a deliberate tradeoff for a simple, personal
-tool — fine as long as the link itself isn't shared publicly.
+The PIN is enforced by the server, not just hidden in the page — so even
+someone poking directly at the API without the PIN gets rejected.
 
 ## Logging hours
 
@@ -92,3 +114,18 @@ main dashboard always shows the previous week + current week combined,
 since that's the live pair that matters day-to-day. The banner at the top
 scans the *entire* history and flags any week-pair that ever went over,
 even if it's since dropped back under.
+
+## Exporting a report
+
+The **Export report** panel lets you pick a "from" week and a "to" week —
+both snapped to full Monday–Sunday weeks, so you can't accidentally slice
+a week in half. It generates a printable report with:
+
+- weekly totals for every week in range
+- running fortnight totals for every consecutive week pair, flagged if
+  any went over 48h
+- a full entry-by-entry breakdown per week (date, start–finish, break, hours)
+
+Click **Print / Save as PDF** in the report view and use your browser's
+print dialog to save it as a PDF — the report is styled to print cleanly
+on its own, without the rest of the app's dark background.
