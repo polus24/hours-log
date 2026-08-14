@@ -127,9 +127,110 @@
   .empty-note { color: rgba(243,238,221,0.4); font-size: 13px; text-align: center; padding: 18px 0; }
 
   footer { text-align: center; margin-top: 22px; font-size: 11px; color: rgba(243,238,221,0.3); }
+
+  /* ---- PIN lock ---- */
+  .pin-overlay {
+    position: fixed; inset: 0; z-index: 2000;
+    background: radial-gradient(ellipse at top, var(--ink-navy-2), var(--ink-navy) 65%);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .pin-card {
+    background: var(--paper); color: var(--ink-text); border-radius: 14px;
+    padding: 28px 24px; max-width: 320px; width: 100%; text-align: center;
+    box-shadow: 0 18px 40px -18px rgba(0,0,0,0.6);
+  }
+  .pin-card h1 { font-size: 22px; margin: 0 0 8px; }
+  .pin-card .sub { color: var(--paper-text-dim); margin-bottom: 18px; }
+  .pin-card input {
+    width: 100%; text-align: center; letter-spacing: 0.4em; font-size: 20px;
+    font-family: 'IBM Plex Mono', monospace; background: #fff; border: 1px solid rgba(27,42,61,0.2);
+    color: var(--ink-text); border-radius: 8px; padding: 12px 10px;
+  }
+  .pin-card button { width: 100%; margin-top: 12px; }
+  .pin-error { color: var(--rule-red); font-size: 12.5px; margin-top: 10px; min-height: 16px; }
+  .lock-link {
+    position: fixed; top: 14px; right: 16px; background: none; border: none;
+    color: rgba(243,238,221,0.35); font-size: 11px; cursor: pointer; font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .lock-link:hover { color: var(--amber); }
+
+  /* ---- export panel ---- */
+  .export-note { font-size: 12px; color: rgba(243,238,221,0.5); margin: 0 0 12px; }
+  .export-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  select {
+    width: 100%; background: var(--ink-navy); border: 1px solid rgba(243,238,221,0.15); color: var(--paper);
+    border-radius: 8px; padding: 10px; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px;
+  }
+  select:focus { outline: 2px solid var(--amber); outline-offset: 1px; }
+
+  /* ---- report overlay ---- */
+  .report-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(16,27,38,0.92);
+    z-index: 2100; overflow-y: auto; padding: 24px 12px 60px;
+  }
+  .report-sheet {
+    max-width: 720px; margin: 0 auto; background: #fff; color: var(--ink-text);
+    border-radius: 10px; padding: 34px 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .report-toolbar { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 18px; }
+  .btn-outline {
+    background: none; border: 1px solid rgba(27,42,61,0.25); color: var(--ink-text); border-radius: 8px;
+    padding: 0 16px; height: 40px; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px;
+  }
+  .btn-outline:hover { background: rgba(27,42,61,0.06); }
+
+  .rpt-header { text-align: center; border-bottom: 2px solid var(--ink-text); padding-bottom: 16px; margin-bottom: 22px; }
+  .rpt-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--rule-red-dim); margin-bottom: 6px; }
+  .rpt-title { font-family: 'Courier Prime', monospace; font-size: 26px; margin: 0 0 6px; }
+  .rpt-range { font-family: 'IBM Plex Mono', monospace; font-size: 14px; margin-bottom: 4px; }
+  .rpt-meta { font-size: 11px; color: var(--paper-text-dim); }
+
+  .rpt-section { margin-bottom: 26px; }
+  .rpt-section h3 { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--paper-text-dim); border-bottom: 1px solid var(--paper-dim); padding-bottom: 6px; margin-bottom: 10px; }
+
+  .rpt-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .rpt-table th { text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--paper-text-dim); border-bottom: 1px solid var(--ink-text); padding: 6px 8px; }
+  .rpt-table td { padding: 6px 8px; border-bottom: 1px solid var(--paper-dim); }
+  .rpt-table .num-cell { text-align: right; font-family: 'IBM Plex Mono', monospace; }
+  .rpt-table .status-cell { text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
+  .rpt-table .muted-cell { color: var(--paper-text-dim); font-style: italic; }
+  .rpt-table tr.over-row td { color: var(--rule-red); font-weight: 600; }
+
+  .rpt-week { margin-bottom: 18px; }
+  .rpt-week-head {
+    display: flex; justify-content: space-between; font-family: 'Courier Prime', monospace;
+    font-weight: 700; font-size: 14px; margin-bottom: 6px; border-bottom: 1px solid var(--ink-text); padding-bottom: 4px;
+  }
+  .rpt-week-total { color: var(--tally-green); }
+
+  @media print {
+    body * { visibility: hidden; }
+    .report-overlay, .report-overlay * { visibility: visible; }
+    .report-overlay { position: absolute; inset: 0; background: #fff; padding: 0; }
+    .report-sheet { box-shadow: none; max-width: 100%; }
+    .no-print { display: none !important; }
+  }
 </style>
 </head>
 <body>
+
+<button class="lock-link no-print" id="lockBtn">Lock</button>
+
+<div id="pinOverlay" class="pin-overlay">
+  <div class="pin-card">
+    <div class="eyebrow">Private log</div>
+    <h1>Enter PIN</h1>
+    <p class="sub">This log is private to the household. Enter the shared PIN to continue.</p>
+    <form id="pinForm">
+      <input type="password" inputmode="numeric" id="pinInput" placeholder="••••" maxlength="12" autocomplete="off" required>
+      <button type="submit" class="add-btn">Unlock</button>
+    </form>
+    <div class="pin-error" id="pinError"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
 <div class="wrap">
 
   <header>
@@ -198,7 +299,34 @@
     <div class="history-list" id="historyList"></div>
   </div>
 
+  <div class="panel">
+    <h2>Export report</h2>
+    <p class="export-note">Pick full weeks (Mon–Sun) to include — the report shows every entry plus the running fortnight totals.</p>
+    <div class="export-row">
+      <div class="field">
+        <label for="fromWeekSelect">From week</label>
+        <select id="fromWeekSelect"></select>
+      </div>
+      <div class="field">
+        <label for="toWeekSelect">To week</label>
+        <select id="toWeekSelect"></select>
+      </div>
+    </div>
+    <button id="generateReportBtn" class="add-btn" style="margin-top:12px; width:100%;">Generate report</button>
+  </div>
+
   <footer>Open this same link on any phone or PC — everyone sees the same log automatically.</footer>
+</div>
+</div>
+
+<div id="reportOverlay" class="report-overlay">
+  <div class="report-sheet">
+    <div class="report-toolbar no-print">
+      <button id="printReportBtn" class="add-btn">Print / Save as PDF</button>
+      <button id="closeReportBtn" class="btn-outline">Close</button>
+    </div>
+    <div id="reportContent"></div>
+  </div>
 </div>
 
 <script>
@@ -206,7 +334,9 @@ const API = '/api/entries';
 // Fixed shared key so every device (his phone, your phones) automatically
 // sees the same log — no per-device code to copy or forget.
 const syncCode = 'household-hours-log';
+const PIN_KEY = 'htk_pin';
 let entries = [];
+let pin = null;
 
 function todayStr() {
   const d = new Date();
@@ -370,17 +500,43 @@ function render() {
     `;
     }).join('');
   }
+
+  populateWeekSelects();
 }
 
 function showError(msg) {
   document.getElementById('errorBanner').innerHTML = msg ? `<div class="error-note">${msg}</div>` : '';
 }
 
+function showPinLock(errorMsg) {
+  document.getElementById('pinOverlay').style.display = 'flex';
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('pinError').textContent = errorMsg || '';
+  const input = document.getElementById('pinInput');
+  input.value = '';
+  setTimeout(() => input.focus(), 50);
+}
+
+function unlockApp() {
+  document.getElementById('pinOverlay').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+}
+
+function handleUnauthorized() {
+  localStorage.removeItem(PIN_KEY);
+  pin = null;
+  showPinLock('Incorrect PIN — try again.');
+}
+
 async function loadEntries() {
+  if (!pin) { showPinLock(); return; }
   try {
-    const res = await fetch(`${API}?user=${encodeURIComponent(syncCode)}`);
+    const res = await fetch(`${API}?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`);
+    if (res.status === 401) { handleUnauthorized(); return; }
     if (!res.ok) throw new Error('bad response');
     entries = await res.json();
+    localStorage.setItem(PIN_KEY, pin);
+    unlockApp();
     showError('');
   } catch (e) {
     showError('Could not reach the server — check the API/KV setup, or your connection. Showing last known data.');
@@ -393,8 +549,9 @@ async function addEntry(date, start, finish, breakMinutes, hours) {
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ user: syncCode, date, start, finish, breakMinutes, hours })
+      body: JSON.stringify({ user: syncCode, pin, date, start, finish, breakMinutes, hours })
     });
+    if (res.status === 401) { handleUnauthorized(); return; }
     if (!res.ok) throw new Error('bad response');
     await loadEntries();
   } catch (e) {
@@ -407,8 +564,9 @@ async function deleteEntry(id) {
     const res = await fetch(API, {
       method: 'DELETE',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ user: syncCode, id })
+      body: JSON.stringify({ user: syncCode, pin, id })
     });
+    if (res.status === 401) { handleUnauthorized(); return; }
     if (!res.ok) throw new Error('bad response');
     await loadEntries();
   } catch (e) {
@@ -464,7 +622,143 @@ document.getElementById('historyList').addEventListener('click', async (ev) => {
   await deleteEntry(btn.dataset.id);
 });
 
-loadEntries();
+// ---- PIN lock wiring ----
+document.getElementById('pinForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const val = document.getElementById('pinInput').value.trim();
+  if (!val) return;
+  pin = val;
+  await loadEntries();
+});
+
+document.getElementById('lockBtn').addEventListener('click', () => {
+  localStorage.removeItem(PIN_KEY);
+  pin = null;
+  showPinLock();
+});
+
+// ---- export: week selectors ----
+function populateWeekSelects() {
+  const fromSel = document.getElementById('fromWeekSelect');
+  const toSel = document.getElementById('toWeekSelect');
+  const todayMonday = mondayOf(todayStr());
+  let earliest = todayMonday;
+  if (entries.length) {
+    const minDate = entries.reduce((m, e) => (e.date < m ? e.date : m), entries[0].date);
+    earliest = mondayOf(minDate);
+  }
+  const opts = [];
+  let cursor = earliest;
+  while (cursor <= todayMonday) { opts.push(cursor); cursor = shiftDate(cursor, 7); }
+
+  const prevFrom = fromSel.value, prevTo = toSel.value;
+  const optionHtml = opts.map(m => `<option value="${m}">${fmtShort(m)} – ${fmtShort(shiftDate(m,6))}</option>`).join('');
+  fromSel.innerHTML = optionHtml;
+  toSel.innerHTML = optionHtml;
+  fromSel.value = opts.includes(prevFrom) ? prevFrom : opts[0];
+  toSel.value = opts.includes(prevTo) ? prevTo : opts[opts.length - 1];
+}
+
+// ---- export: build & show report ----
+function fmtFull(dateStr) {
+  return parseDate(dateStr).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function buildReport(fromMonday, toMonday) {
+  const map = dailyTotals();
+  const weeks = [];
+  let cursor = fromMonday;
+  while (cursor <= toMonday) { weeks.push(cursor); cursor = shiftDate(cursor, 7); }
+
+  const weeklyRows = weeks.map(w => {
+    const t = weekTotal(w, map);
+    return `<tr><td>${fmtShort(w)} – ${fmtShort(shiftDate(w,6))}</td><td class="num-cell">${t.toFixed(2)}h</td></tr>`;
+  }).join('');
+
+  let fortnightRows;
+  if (weeks.length < 2) {
+    fortnightRows = `<tr><td colspan="3" class="muted-cell">Select at least two weeks to see a fortnight total.</td></tr>`;
+  } else {
+    fortnightRows = '';
+    for (let i = 0; i < weeks.length - 1; i++) {
+      const a = weeks[i], b = weeks[i+1];
+      const combined = weekTotal(a, map) + weekTotal(b, map);
+      const over = combined > 48;
+      fortnightRows += `<tr class="${over ? 'over-row' : ''}"><td>${fmtShort(a)} – ${fmtShort(shiftDate(b,6))}</td><td class="num-cell">${combined.toFixed(2)}h</td><td class="status-cell">${over ? 'OVER' : 'OK'}</td></tr>`;
+    }
+  }
+
+  const detailSections = weeks.map(w => {
+    const weekEntries = entries.filter(e => e.date >= w && e.date <= shiftDate(w,6)).sort((a,b) => a.date.localeCompare(b.date));
+    const rows = weekEntries.length
+      ? weekEntries.map(e => {
+          const timeTxt = (e.start && e.finish) ? `${e.start}–${e.finish}` : '—';
+          const breakTxt = e.breakMinutes ? `${e.breakMinutes}m` : '—';
+          return `<tr><td>${fmtFull(e.date)}</td><td>${timeTxt}</td><td>${breakTxt}</td><td class="num-cell">${e.hours.toFixed(2)}h</td></tr>`;
+        }).join('')
+      : `<tr><td colspan="4" class="muted-cell">No entries this week.</td></tr>`;
+    const total = weekTotal(w, map);
+    return `
+      <div class="rpt-week">
+        <div class="rpt-week-head"><span>${fmtShort(w)} – ${fmtShort(shiftDate(w,6))}</span><span class="rpt-week-total">${total.toFixed(2)}h</span></div>
+        <table class="rpt-table">
+          <thead><tr><th>Date</th><th>Time</th><th>Break</th><th>Hours</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }).join('');
+
+  const generated = new Date().toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' });
+
+  document.getElementById('reportContent').innerHTML = `
+    <div class="rpt-header">
+      <div class="rpt-eyebrow">Fortnight Cap Tracker</div>
+      <h2 class="rpt-title">Hours Report</h2>
+      <div class="rpt-range">${fmtShort(fromMonday)} – ${fmtShort(shiftDate(toMonday,6))}</div>
+      <div class="rpt-meta">Generated ${generated} · 48h rolling fortnight limit</div>
+    </div>
+    <div class="rpt-section">
+      <h3>Weekly totals</h3>
+      <table class="rpt-table"><thead><tr><th>Week</th><th>Total</th></tr></thead><tbody>${weeklyRows}</tbody></table>
+    </div>
+    <div class="rpt-section">
+      <h3>Running fortnight totals</h3>
+      <table class="rpt-table"><thead><tr><th>Fortnight</th><th>Total</th><th>Status</th></tr></thead><tbody>${fortnightRows}</tbody></table>
+    </div>
+    <div class="rpt-section">
+      <h3>Entry detail</h3>
+      ${detailSections}
+    </div>
+  `;
+}
+
+document.getElementById('generateReportBtn').addEventListener('click', () => {
+  const from = document.getElementById('fromWeekSelect').value;
+  const to = document.getElementById('toWeekSelect').value;
+  if (!from || !to || from > to) {
+    alert('Choose a "from" week that is on or before the "to" week.');
+    return;
+  }
+  buildReport(from, to);
+  document.getElementById('reportOverlay').style.display = 'flex';
+  document.getElementById('reportOverlay').scrollTop = 0;
+});
+
+document.getElementById('closeReportBtn').addEventListener('click', () => {
+  document.getElementById('reportOverlay').style.display = 'none';
+});
+
+document.getElementById('printReportBtn').addEventListener('click', () => {
+  window.print();
+});
+
+// ---- boot ----
+pin = localStorage.getItem(PIN_KEY);
+if (pin) {
+  loadEntries();
+} else {
+  showPinLock();
+}
 </script>
 </body>
 </html>
