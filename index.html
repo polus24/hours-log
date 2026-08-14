@@ -88,14 +88,21 @@
   .cell .h { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; }
   .cell.today { outline: 1px solid var(--amber); }
 
-  form.entry-form { display: flex; gap: 8px; flex-wrap: wrap; }
+  form.entry-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+  .break-field { max-width: 110px; }
+  .computed-hours {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: rgba(243,238,221,0.55);
+    width: 100%; order: 5; min-height: 16px;
+  }
+  .computed-hours b { color: var(--tally-green); }
+  .computed-hours.invalid b { color: var(--rule-red); }
   .field { flex: 1; min-width: 120px; }
   .field label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(243,238,221,0.45); margin-bottom: 5px; }
-  input[type="date"], input[type="number"] {
+  input[type="date"], input[type="number"], input[type="time"] {
     width: 100%; background: var(--ink-navy); border: 1px solid rgba(243,238,221,0.15); color: var(--paper);
     border-radius: 8px; padding: 10px 10px; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px;
   }
-  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.9); }
+  input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.9); }
   input:focus { outline: 2px solid var(--amber); outline-offset: 1px; }
   button.add-btn {
     background: var(--amber); color: var(--ink-navy); border: none; border-radius: 8px; padding: 0 18px;
@@ -111,7 +118,8 @@
 
   .history-list { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; padding-right: 2px; }
   .entry-row { display: flex; align-items: center; justify-content: space-between; background: var(--ink-navy-3); border-radius: 8px; padding: 9px 12px; }
-  .entry-row .date-txt { font-size: 13px; font-weight: 500; }
+  .entry-row .date-txt { font-size: 13px; font-weight: 500; display: flex; flex-direction: column; gap: 2px; }
+  .entry-row .time-sub { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(243,238,221,0.45); font-weight: 400; }
   .entry-row .hrs { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 14px; color: var(--tally-green); margin-right: 12px; }
   .entry-row .row-right { display: flex; align-items: center; }
   .del-btn { background: none; border: none; color: rgba(243,238,221,0.4); cursor: pointer; font-size: 16px; line-height: 1; padding: 4px 6px; }
@@ -169,9 +177,18 @@
         <input type="date" id="dateInput" required>
       </div>
       <div class="field">
-        <label for="hoursInput">Hours</label>
-        <input type="number" id="hoursInput" step="0.25" min="0" max="24" placeholder="7.5" required>
+        <label for="startInput">Start</label>
+        <input type="time" id="startInput" required>
       </div>
+      <div class="field">
+        <label for="finishInput">Finish</label>
+        <input type="time" id="finishInput" required>
+      </div>
+      <div class="field break-field">
+        <label for="breakInput">Break (min)</label>
+        <input type="number" id="breakInput" step="5" min="0" max="600" placeholder="30" value="0">
+      </div>
+      <div class="computed-hours" id="computedHours"></div>
       <button type="submit" class="add-btn" id="addBtn">Add</button>
     </form>
   </div>
@@ -199,6 +216,28 @@ function parseDate(s) { return new Date(s + 'T00:00:00'); }
 function toStr(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 function shiftDate(dateStr, delta) { const d = parseDate(dateStr); d.setDate(d.getDate() + delta); return toStr(d); }
 function fmtShort(s) { return parseDate(s).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }); }
+
+// Turns start/finish times + a break into decimal hours.
+// Handles overnight shifts (finish earlier than start = next day).
+function computeHours(start, finish, breakMinutes) {
+  if (!start || !finish) return null;
+  const [sh, sm] = start.split(':').map(Number);
+  const [fh, fm] = finish.split(':').map(Number);
+  let startMin = sh * 60 + sm;
+  let finishMin = fh * 60 + fm;
+  let diff = finishMin - startMin;
+  if (diff <= 0) diff += 24 * 60; // crossed midnight
+  diff -= (Number(breakMinutes) || 0);
+  if (diff < 0) return 0;
+  return diff / 60;
+}
+
+function fmtHM(hoursDecimal) {
+  const totalMin = Math.round(hoursDecimal * 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
 
 // Monday on-or-before the given date
 function mondayOf(dateStr) {
@@ -313,15 +352,23 @@ function render() {
     list.innerHTML = '<div class="empty-note">No entries yet — log your first shift above.</div>';
   } else {
     const sorted = [...entries].sort((a,b) => b.date.localeCompare(a.date));
-    list.innerHTML = sorted.map(e => `
+    list.innerHTML = sorted.map(e => {
+      const timeLine = (e.start && e.finish)
+        ? `${e.start}–${e.finish}${e.breakMinutes ? ` (${e.breakMinutes}m break)` : ''}`
+        : '';
+      return `
       <div class="entry-row" data-id="${e.id}">
-        <span class="date-txt">${fmtShort(e.date)} — ${parseDate(e.date).toLocaleDateString('en-AU',{weekday:'short'})}</span>
+        <span class="date-txt">
+          ${fmtShort(e.date)} — ${parseDate(e.date).toLocaleDateString('en-AU',{weekday:'short'})}
+          ${timeLine ? `<span class="time-sub">${timeLine}</span>` : ''}
+        </span>
         <div class="row-right">
           <span class="hrs">${e.hours.toFixed(2).replace(/\.?0+$/,'')}h</span>
           <button class="del-btn" data-id="${e.id}" aria-label="Delete entry">✕</button>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 }
 
@@ -341,12 +388,12 @@ async function loadEntries() {
   render();
 }
 
-async function addEntry(date, hours) {
+async function addEntry(date, start, finish, breakMinutes, hours) {
   try {
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ user: syncCode, date, hours })
+      body: JSON.stringify({ user: syncCode, date, start, finish, breakMinutes, hours })
     });
     if (!res.ok) throw new Error('bad response');
     await loadEntries();
@@ -372,15 +419,43 @@ async function deleteEntry(id) {
 document.getElementById('dateInput').value = todayStr();
 document.getElementById('dateInput').max = todayStr();
 
+function updateComputedPreview() {
+  const start = document.getElementById('startInput').value;
+  const finish = document.getElementById('finishInput').value;
+  const breakMin = document.getElementById('breakInput').value;
+  const out = document.getElementById('computedHours');
+  if (!start || !finish) { out.textContent = ''; out.classList.remove('invalid'); return; }
+  const hours = computeHours(start, finish, breakMin);
+  if (hours === null || hours <= 0) {
+    out.innerHTML = `<b>Check the times</b> — that works out to 0 hours.`;
+    out.classList.add('invalid');
+  } else if (hours > 24) {
+    out.innerHTML = `<b>That's over 24h</b> — double-check start/finish.`;
+    out.classList.add('invalid');
+  } else {
+    out.innerHTML = `Shift length: <b>${fmtHM(hours)}</b> (${hours.toFixed(2)}h)`;
+    out.classList.remove('invalid');
+  }
+}
+['startInput','finishInput','breakInput'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateComputedPreview);
+});
+
 document.getElementById('entryForm').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const date = document.getElementById('dateInput').value;
-  const hours = parseFloat(document.getElementById('hoursInput').value);
-  if (!date || isNaN(hours) || hours <= 0) return;
+  const start = document.getElementById('startInput').value;
+  const finish = document.getElementById('finishInput').value;
+  const breakMinutes = Number(document.getElementById('breakInput').value) || 0;
+  const hours = computeHours(start, finish, breakMinutes);
+  if (!date || hours === null || hours <= 0 || hours > 24) return;
   document.getElementById('addBtn').disabled = true;
-  await addEntry(date, hours);
+  await addEntry(date, start, finish, breakMinutes, hours);
   document.getElementById('addBtn').disabled = false;
-  document.getElementById('hoursInput').value = '';
+  document.getElementById('startInput').value = '';
+  document.getElementById('finishInput').value = '';
+  document.getElementById('breakInput').value = '0';
+  updateComputedPreview();
 });
 
 document.getElementById('historyList').addEventListener('click', async (ev) => {
