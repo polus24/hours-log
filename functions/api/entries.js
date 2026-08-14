@@ -15,11 +15,24 @@ function keyFor(user) {
   return "entries:" + clean;
 }
 
+// Checks the PIN against the APP_PIN environment variable/secret.
+// If APP_PIN hasn't been configured yet, requests are allowed through
+// (so the site doesn't lock you out before you've set it up) —
+// once APP_PIN is set in the Cloudflare Pages project and redeployed,
+// every request is required to match it.
+function pinOk(env, providedPin) {
+  const expected = env.APP_PIN;
+  if (!expected) return true;
+  return String(providedPin || "") === String(expected);
+}
+
 export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const user = url.searchParams.get("user");
+  const providedPin = url.searchParams.get("pin");
   if (!user) return json({ error: "missing user" }, 400);
+  if (!pinOk(env, providedPin)) return json({ error: "unauthorized" }, 401);
 
   const raw = await env.HOURS_KV.get(keyFor(user));
   return json(raw ? JSON.parse(raw) : []);
@@ -41,6 +54,7 @@ export async function onRequestPost(context) {
   const finish = body.finish || null;
   const breakMinutes = Number.isFinite(Number(body.breakMinutes)) ? Number(body.breakMinutes) : 0;
 
+  if (!pinOk(env, body.pin)) return json({ error: "unauthorized" }, 401);
   if (!user || !date || !Number.isFinite(hours) || hours <= 0 || hours > 24) {
     return json({ error: "invalid entry" }, 400);
   }
@@ -67,6 +81,7 @@ export async function onRequestDelete(context) {
 
   const user = body.user;
   const id = body.id;
+  if (!pinOk(env, body.pin)) return json({ error: "unauthorized" }, 401);
   if (!user || !id) return json({ error: "invalid" }, 400);
 
   const key = keyFor(user);
