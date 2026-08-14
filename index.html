@@ -40,26 +40,6 @@
   h1 { font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 30px; letter-spacing: 0.03em; margin: 0 0 6px; }
   .sub { color: rgba(243,238,221,0.55); font-size: 13.5px; max-width: 440px; margin: 0 auto; line-height: 1.5; }
 
-  .sync-bar {
-    text-align: center; font-size: 12px; color: rgba(243,238,221,0.5);
-    margin: 14px 0 22px; font-family: 'IBM Plex Mono', monospace;
-  }
-  .sync-bar code { background: var(--ink-navy-3); padding: 3px 8px; border-radius: 5px; color: var(--amber); letter-spacing: 0.05em; }
-  .link-btn {
-    background: none; border: none; color: rgba(243,238,221,0.45); text-decoration: underline;
-    font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; cursor: pointer; padding: 0; margin-left: 8px;
-  }
-  .link-btn:hover { color: var(--amber); }
-  .sync-edit { display: none; justify-content: center; gap: 6px; margin-top: 10px; }
-  .sync-edit input {
-    background: var(--ink-navy); border: 1px solid rgba(243,238,221,0.15); color: var(--paper);
-    border-radius: 6px; padding: 6px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; width: 140px;
-  }
-  .sync-edit button {
-    background: var(--amber); color: var(--ink-navy); border: none; border-radius: 6px;
-    padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
-  }
-
   .stamp-card {
     background: var(--paper); color: var(--ink-text); border-radius: 14px;
     padding: 26px 22px 22px; position: relative; box-shadow: 0 18px 40px -18px rgba(0,0,0,0.6);
@@ -150,15 +130,6 @@
     <p class="sub">Weeks run Monday–Sunday. Any two consecutive weeks together must stay under 48 hours.</p>
   </header>
 
-  <div class="sync-bar">
-    Sync code: <code id="syncCodeDisplay">—</code>
-    <button class="link-btn" id="syncEditBtn">use a different code</button>
-    <div class="sync-edit" id="syncEditPanel">
-      <input id="syncCodeInput" placeholder="Enter code" maxlength="20">
-      <button id="syncCodeSave">Use this code</button>
-    </div>
-  </div>
-
   <div id="errorBanner"></div>
 
   <div class="stamp-card">
@@ -210,20 +181,15 @@
     <div class="history-list" id="historyList"></div>
   </div>
 
-  <footer>Data syncs via your sync code — enter the same code on any device to see the same log.</footer>
+  <footer>Open this same link on any phone or PC — everyone sees the same log automatically.</footer>
 </div>
 
 <script>
 const API = '/api/entries';
+// Fixed shared key so every device (his phone, your phones) automatically
+// sees the same log — no per-device code to copy or forget.
+const syncCode = 'household-hours-log';
 let entries = [];
-let syncCode = '';
-
-function genCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let s = '';
-  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
-  return s;
-}
 
 function todayStr() {
   const d = new Date();
@@ -403,15 +369,6 @@ async function deleteEntry(id) {
   }
 }
 
-function initSyncCode() {
-  syncCode = localStorage.getItem('htk_sync_code');
-  if (!syncCode) {
-    syncCode = genCode();
-    localStorage.setItem('htk_sync_code', syncCode);
-  }
-  document.getElementById('syncCodeDisplay').textContent = syncCode;
-}
-
 document.getElementById('dateInput').value = todayStr();
 document.getElementById('dateInput').max = todayStr();
 
@@ -432,21 +389,6 @@ document.getElementById('historyList').addEventListener('click', async (ev) => {
   await deleteEntry(btn.dataset.id);
 });
 
-document.getElementById('syncEditBtn').addEventListener('click', () => {
-  const panel = document.getElementById('syncEditPanel');
-  panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
-});
-document.getElementById('syncCodeSave').addEventListener('click', async () => {
-  const val = document.getElementById('syncCodeInput').value.trim().toUpperCase();
-  if (!val) return;
-  syncCode = val;
-  localStorage.setItem('htk_sync_code', syncCode);
-  document.getElementById('syncCodeDisplay').textContent = syncCode;
-  document.getElementById('syncEditPanel').style.display = 'none';
-  await loadEntries();
-});
-
-initSyncCode();
 loadEntries();
 </script>
 </body>
