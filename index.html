@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hours Log — Fortnight Cap Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink-navy: #101b26;
+    --ink-navy-2: #17293b;
+    --ink-navy-3: #1f3348;
+    --paper: #f3eedd;
+    --paper-dim: #e4dcc3;
+    --rule-red: #c1443a;
+    --rule-red-dim: #8f342c;
+    --tally-green: #5b9279;
+    --amber: #d9a44a;
+    --ink-text: #1b2a3d;
+    --paper-text-dim: #6b6250;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(ellipse at top, var(--ink-navy-2), var(--ink-navy) 65%);
+    color: var(--paper);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 28px 16px 60px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 18px; }
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 0.28em; color: var(--amber);
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  h1 { font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 30px; letter-spacing: 0.03em; margin: 0 0 6px; }
+  .sub { color: rgba(243,238,221,0.55); font-size: 13.5px; max-width: 440px; margin: 0 auto; line-height: 1.5; }
+
+  .sync-bar {
+    text-align: center; font-size: 12px; color: rgba(243,238,221,0.5);
+    margin: 14px 0 22px; font-family: 'IBM Plex Mono', monospace;
+  }
+  .sync-bar code { background: var(--ink-navy-3); padding: 3px 8px; border-radius: 5px; color: var(--amber); letter-spacing: 0.05em; }
+  .link-btn {
+    background: none; border: none; color: rgba(243,238,221,0.45); text-decoration: underline;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; cursor: pointer; padding: 0; margin-left: 8px;
+  }
+  .link-btn:hover { color: var(--amber); }
+  .sync-edit { display: none; justify-content: center; gap: 6px; margin-top: 10px; }
+  .sync-edit input {
+    background: var(--ink-navy); border: 1px solid rgba(243,238,221,0.15); color: var(--paper);
+    border-radius: 6px; padding: 6px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; width: 140px;
+  }
+  .sync-edit button {
+    background: var(--amber); color: var(--ink-navy); border: none; border-radius: 6px;
+    padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+
+  .stamp-card {
+    background: var(--paper); color: var(--ink-text); border-radius: 14px;
+    padding: 26px 22px 22px; position: relative; box-shadow: 0 18px 40px -18px rgba(0,0,0,0.6);
+    overflow: hidden; margin-bottom: 18px;
+  }
+  .stamp-card::before {
+    content: ""; position: absolute; inset: 8px; border: 1px dashed rgba(27,42,61,0.18); border-radius: 8px; pointer-events: none;
+  }
+  .stamp-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .total-block .label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--paper-text-dim); margin-bottom: 4px; }
+  .total-block .num { font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 46px; line-height: 1; }
+  .total-block .num small { font-size: 20px; color: var(--paper-text-dim); font-weight: 400; }
+
+  .stamp {
+    font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
+    border: 3px solid currentColor; border-radius: 50%; width: 92px; height: 92px;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    transform: rotate(-9deg); line-height: 1.15; flex-shrink: 0;
+  }
+  .stamp.ok { color: var(--tally-green); }
+  .stamp.warn { color: var(--amber); }
+  .stamp.over { color: var(--rule-red); }
+  .stamp .small { display:block; font-size: 9px; letter-spacing: 0.06em; opacity: 0.8; margin-top: 2px; }
+
+  .gauge { margin-top: 18px; height: 10px; border-radius: 6px; background: var(--paper-dim); position: relative; overflow: visible; }
+  .gauge-fill { height: 100%; border-radius: 6px; transition: width 0.4s ease, background 0.4s ease; }
+  .gauge-cap { position: absolute; top: -5px; bottom: -5px; right: 0; width: 2px; background: var(--rule-red); }
+  .gauge-cap::after {
+    content: "48h LIMIT"; position: absolute; right: 0; top: -18px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; letter-spacing: 0.06em; color: var(--rule-red-dim); white-space: nowrap;
+  }
+  .gauge-note { margin-top: 20px; font-size: 12.5px; color: var(--paper-text-dim); }
+
+  .panel { background: var(--ink-navy-2); border: 1px solid rgba(243,238,221,0.08); border-radius: 14px; padding: 18px; margin-bottom: 18px; }
+  .panel h2 { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(243,238,221,0.5); margin: 0 0 4px; }
+  .week-total { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: rgba(243,238,221,0.65); margin-bottom: 10px; }
+  .week-total b { color: var(--paper); }
+
+  .strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 16px; }
+  .strip:last-child { margin-bottom: 0; }
+  .cell { background: var(--ink-navy-3); border-radius: 8px; padding: 8px 4px 6px; text-align: center; }
+  .cell.future { opacity: 0.35; }
+  .cell .d { font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.04em; color: rgba(243,238,221,0.45); margin-bottom: 6px; text-transform: uppercase; }
+  .cell .bar-track { height: 32px; display: flex; align-items: flex-end; margin-bottom: 5px; }
+  .cell .bar { width: 100%; border-radius: 3px 3px 0 0; background: var(--tally-green); min-height: 2px; }
+  .cell .h { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; }
+  .cell.today { outline: 1px solid var(--amber); }
+
+  form.entry-form { display: flex; gap: 8px; flex-wrap: wrap; }
+  .field { flex: 1; min-width: 120px; }
+  .field label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(243,238,221,0.45); margin-bottom: 5px; }
+  input[type="date"], input[type="number"] {
+    width: 100%; background: var(--ink-navy); border: 1px solid rgba(243,238,221,0.15); color: var(--paper);
+    border-radius: 8px; padding: 10px 10px; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.9); }
+  input:focus { outline: 2px solid var(--amber); outline-offset: 1px; }
+  button.add-btn {
+    background: var(--amber); color: var(--ink-navy); border: none; border-radius: 8px; padding: 0 18px;
+    font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer;
+    align-self: flex-end; height: 40px; margin-top: auto;
+  }
+  button.add-btn:hover { filter: brightness(1.08); }
+  button.add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .breach { background: rgba(193,68,58,0.15); border: 1px solid var(--rule-red-dim); color: #f3d4d0; border-radius: 10px; padding: 12px 14px; font-size: 13px; margin-bottom: 18px; line-height: 1.5; }
+  .breach b { color: #ffb3ab; }
+  .error-note { background: rgba(193,68,58,0.12); border: 1px solid var(--rule-red-dim); color: #f3d4d0; border-radius: 10px; padding: 10px 14px; font-size: 12.5px; margin-bottom: 18px; }
+
+  .history-list { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; padding-right: 2px; }
+  .entry-row { display: flex; align-items: center; justify-content: space-between; background: var(--ink-navy-3); border-radius: 8px; padding: 9px 12px; }
+  .entry-row .date-txt { font-size: 13px; font-weight: 500; }
+  .entry-row .hrs { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 14px; color: var(--tally-green); margin-right: 12px; }
+  .entry-row .row-right { display: flex; align-items: center; }
+  .del-btn { background: none; border: none; color: rgba(243,238,221,0.4); cursor: pointer; font-size: 16px; line-height: 1; padding: 4px 6px; }
+  .del-btn:hover { color: var(--rule-red); }
+  .empty-note { color: rgba(243,238,221,0.4); font-size: 13px; text-align: center; padding: 18px 0; }
+
+  footer { text-align: center; margin-top: 22px; font-size: 11px; color: rgba(243,238,221,0.3); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Fortnight cap tracker</div>
+    <h1>HOURS LOG</h1>
+    <p class="sub">Weeks run Monday–Sunday. Any two consecutive weeks together must stay under 48 hours.</p>
+  </header>
+
+  <div class="sync-bar">
+    Sync code: <code id="syncCodeDisplay">—</code>
+    <button class="link-btn" id="syncEditBtn">use a different code</button>
+    <div class="sync-edit" id="syncEditPanel">
+      <input id="syncCodeInput" placeholder="Enter code" maxlength="20">
+      <button id="syncCodeSave">Use this code</button>
+    </div>
+  </div>
+
+  <div id="errorBanner"></div>
+
+  <div class="stamp-card">
+    <div class="stamp-row">
+      <div class="total-block">
+        <div class="label">This fortnight (last 2 weeks)</div>
+        <div class="num" id="totalNum">0.0<small> / 48 h</small></div>
+      </div>
+      <div class="stamp ok" id="stampBadge">
+        <span id="stampMain">CLEAR</span>
+        <span class="small" id="stampSub">0.0h left</span>
+      </div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-fill" id="gaugeFill" style="width:0%"></div>
+      <div class="gauge-cap"></div>
+    </div>
+    <div class="gauge-note" id="gaugeNote">No hours logged this fortnight.</div>
+  </div>
+
+  <div id="breachBanner"></div>
+
+  <div class="panel">
+    <h2 id="prevWeekLabel">Previous week</h2>
+    <div class="week-total" id="prevWeekTotal"></div>
+    <div class="strip" id="stripPrev"></div>
+    <h2 id="curWeekLabel">This week</h2>
+    <div class="week-total" id="curWeekTotal"></div>
+    <div class="strip" id="stripCur"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Log hours</h2>
+    <form class="entry-form" id="entryForm">
+      <div class="field">
+        <label for="dateInput">Date</label>
+        <input type="date" id="dateInput" required>
+      </div>
+      <div class="field">
+        <label for="hoursInput">Hours</label>
+        <input type="number" id="hoursInput" step="0.25" min="0" max="24" placeholder="7.5" required>
+      </div>
+      <button type="submit" class="add-btn" id="addBtn">Add</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>Entry history</h2>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <footer>Data syncs via your sync code — enter the same code on any device to see the same log.</footer>
+</div>
+
+<script>
+const API = '/api/entries';
+let entries = [];
+let syncCode = '';
+
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function parseDate(s) { return new Date(s + 'T00:00:00'); }
+function toStr(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function shiftDate(dateStr, delta) { const d = parseDate(dateStr); d.setDate(d.getDate() + delta); return toStr(d); }
+function fmtShort(s) { return parseDate(s).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }); }
+
+// Monday on-or-before the given date
+function mondayOf(dateStr) {
+  const d = parseDate(dateStr);
+  const day = d.getDay(); // 0 = Sun ... 6 = Sat
+  const diff = (day === 0 ? -6 : 1 - day);
+  d.setDate(d.getDate() + diff);
+  return toStr(d);
+}
+
+function dailyTotals() {
+  const map = {};
+  for (const e of entries) map[e.date] = (map[e.date] || 0) + e.hours;
+  return map;
+}
+
+function weekTotal(mondayStr, map) {
+  let sum = 0;
+  for (let i = 0; i < 7; i++) sum += map[shiftDate(mondayStr, i)] || 0;
+  return sum;
+}
+
+function findBreaches(map) {
+  if (entries.length === 0) return [];
+  const dates = entries.map(e => e.date).sort();
+  let cursorMonday = mondayOf(dates[0]);
+  const lastMonday = mondayOf(todayStr());
+  const weeks = [];
+  while (cursorMonday <= lastMonday) {
+    weeks.push({ monday: cursorMonday, total: weekTotal(cursorMonday, map) });
+    cursorMonday = shiftDate(cursorMonday, 7);
+  }
+  const breaches = [];
+  for (let i = 0; i < weeks.length - 1; i++) {
+    const combined = weeks[i].total + weeks[i+1].total;
+    if (combined > 48) {
+      breaches.push({ startA: weeks[i].monday, startB: weeks[i+1].monday, total: combined });
+    }
+  }
+  return breaches;
+}
+
+function buildStrip(container, mondayStr, map) {
+  container.innerHTML = '';
+  const today = todayStr();
+  for (let i = 0; i < 7; i++) {
+    const dStr = shiftDate(mondayStr, i);
+    const isFuture = dStr > today;
+    const h = map[dStr] || 0;
+    const barPct = Math.min(100, (h / 12) * 100);
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (dStr === today ? ' today' : '') + (isFuture ? ' future' : '');
+    const dayLabel = parseDate(dStr).toLocaleDateString('en-AU', { weekday: 'short' }).slice(0,2);
+    cell.innerHTML = `
+      <div class="d">${dayLabel} ${fmtShort(dStr)}</div>
+      <div class="bar-track"><div class="bar" style="height:${h>0?Math.max(barPct,8):0}%; background:${h>48/7?'var(--amber)':'var(--tally-green)'}"></div></div>
+      <div class="h">${isFuture ? '' : (h > 0 ? h.toFixed(1) : '–')}</div>
+    `;
+    container.appendChild(cell);
+  }
+}
+
+function render() {
+  const map = dailyTotals();
+  const today = todayStr();
+  const curMonday = mondayOf(today);
+  const prevMonday = shiftDate(curMonday, -7);
+
+  const curTotal = weekTotal(curMonday, map);
+  const prevTotal = weekTotal(prevMonday, map);
+  const fortnightTotal = curTotal + prevTotal;
+
+  document.getElementById('prevWeekLabel').textContent = `Previous week (${fmtShort(prevMonday)} – ${fmtShort(shiftDate(prevMonday,6))})`;
+  document.getElementById('curWeekLabel').textContent = `This week (${fmtShort(curMonday)} – ${fmtShort(shiftDate(curMonday,6))})`;
+  document.getElementById('prevWeekTotal').innerHTML = `<b>${prevTotal.toFixed(1)}h</b> logged`;
+  document.getElementById('curWeekTotal').innerHTML = `<b>${curTotal.toFixed(1)}h</b> logged so far`;
+  buildStrip(document.getElementById('stripPrev'), prevMonday, map);
+  buildStrip(document.getElementById('stripCur'), curMonday, map);
+
+  const pct = Math.min(100, (fortnightTotal / 48) * 100);
+  const remaining = Math.max(0, 48 - fortnightTotal);
+  document.getElementById('totalNum').innerHTML = fortnightTotal.toFixed(1) + '<small> / 48 h</small>';
+  const fill = document.getElementById('gaugeFill');
+  fill.style.width = pct + '%';
+
+  const badge = document.getElementById('stampBadge');
+  const main = document.getElementById('stampMain');
+  const sub = document.getElementById('stampSub');
+  badge.classList.remove('ok','warn','over');
+  if (fortnightTotal > 48) {
+    badge.classList.add('over'); main.textContent = 'OVER'; sub.textContent = (fortnightTotal-48).toFixed(1)+'h over'; fill.style.background = 'var(--rule-red)';
+  } else if (fortnightTotal >= 40) {
+    badge.classList.add('warn'); main.textContent = 'CAUTION'; sub.textContent = remaining.toFixed(1)+'h left'; fill.style.background = 'var(--amber)';
+  } else {
+    badge.classList.add('ok'); main.textContent = 'CLEAR'; sub.textContent = remaining.toFixed(1)+'h left'; fill.style.background = 'var(--tally-green)';
+  }
+  document.getElementById('gaugeNote').textContent = fortnightTotal === 0
+    ? 'No hours logged this fortnight.'
+    : `${fortnightTotal.toFixed(1)}h combined across the previous and current week.`;
+
+  const breaches = findBreaches(map);
+  const banner = document.getElementById('breachBanner');
+  if (breaches.length > 0) {
+    const worst = breaches.reduce((a,b) => a.total > b.total ? a : b);
+    banner.innerHTML = `<div class="breach"><b>${breaches.length} week-pair${breaches.length>1?'s':''} exceeded 48h.</b> Worst: ${worst.total.toFixed(1)}h across the weeks starting ${fmtShort(worst.startA)} and ${fmtShort(worst.startB)}.</div>`;
+  } else {
+    banner.innerHTML = '';
+  }
+
+  const list = document.getElementById('historyList');
+  if (entries.length === 0) {
+    list.innerHTML = '<div class="empty-note">No entries yet — log your first shift above.</div>';
+  } else {
+    const sorted = [...entries].sort((a,b) => b.date.localeCompare(a.date));
+    list.innerHTML = sorted.map(e => `
+      <div class="entry-row" data-id="${e.id}">
+        <span class="date-txt">${fmtShort(e.date)} — ${parseDate(e.date).toLocaleDateString('en-AU',{weekday:'short'})}</span>
+        <div class="row-right">
+          <span class="hrs">${e.hours.toFixed(2).replace(/\.?0+$/,'')}h</span>
+          <button class="del-btn" data-id="${e.id}" aria-label="Delete entry">✕</button>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+function showError(msg) {
+  document.getElementById('errorBanner').innerHTML = msg ? `<div class="error-note">${msg}</div>` : '';
+}
+
+async function loadEntries() {
+  try {
+    const res = await fetch(`${API}?user=${encodeURIComponent(syncCode)}`);
+    if (!res.ok) throw new Error('bad response');
+    entries = await res.json();
+    showError('');
+  } catch (e) {
+    showError('Could not reach the server — check the API/KV setup, or your connection. Showing last known data.');
+  }
+  render();
+}
+
+async function addEntry(date, hours) {
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ user: syncCode, date, hours })
+    });
+    if (!res.ok) throw new Error('bad response');
+    await loadEntries();
+  } catch (e) {
+    showError('Could not save that entry — check your connection and try again.');
+  }
+}
+
+async function deleteEntry(id) {
+  try {
+    const res = await fetch(API, {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ user: syncCode, id })
+    });
+    if (!res.ok) throw new Error('bad response');
+    await loadEntries();
+  } catch (e) {
+    showError('Could not delete that entry — check your connection and try again.');
+  }
+}
+
+function initSyncCode() {
+  syncCode = localStorage.getItem('htk_sync_code');
+  if (!syncCode) {
+    syncCode = genCode();
+    localStorage.setItem('htk_sync_code', syncCode);
+  }
+  document.getElementById('syncCodeDisplay').textContent = syncCode;
+}
+
+document.getElementById('dateInput').value = todayStr();
+document.getElementById('dateInput').max = todayStr();
+
+document.getElementById('entryForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const date = document.getElementById('dateInput').value;
+  const hours = parseFloat(document.getElementById('hoursInput').value);
+  if (!date || isNaN(hours) || hours <= 0) return;
+  document.getElementById('addBtn').disabled = true;
+  await addEntry(date, hours);
+  document.getElementById('addBtn').disabled = false;
+  document.getElementById('hoursInput').value = '';
+});
+
+document.getElementById('historyList').addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('.del-btn');
+  if (!btn) return;
+  await deleteEntry(btn.dataset.id);
+});
+
+document.getElementById('syncEditBtn').addEventListener('click', () => {
+  const panel = document.getElementById('syncEditPanel');
+  panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+});
+document.getElementById('syncCodeSave').addEventListener('click', async () => {
+  const val = document.getElementById('syncCodeInput').value.trim().toUpperCase();
+  if (!val) return;
+  syncCode = val;
+  localStorage.setItem('htk_sync_code', syncCode);
+  document.getElementById('syncCodeDisplay').textContent = syncCode;
+  document.getElementById('syncEditPanel').style.display = 'none';
+  await loadEntries();
+});
+
+initSyncCode();
+loadEntries();
+</script>
+</body>
+</html>
