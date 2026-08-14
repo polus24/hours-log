@@ -130,6 +130,21 @@
   .breach b { color: #ffb3ab; }
   .error-note { background: rgba(193,68,58,0.12); border: 1px solid var(--rule-red-dim); color: #f3d4d0; border-radius: 10px; padding: 10px 14px; font-size: 12.5px; margin-bottom: 18px; }
 
+  .reminder-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    background: var(--ink-navy-2); border: 1px solid rgba(243,238,221,0.08); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 16px; font-size: 12.5px; color: rgba(243,238,221,0.6);
+  }
+  .reminder-bar.on { border-color: rgba(91,146,121,0.4); }
+  .reminder-bar.on #reminderStatusText { color: var(--tally-green); }
+  .btn-outline-dark {
+    background: none; border: 1px solid rgba(243,238,221,0.25); color: var(--paper); border-radius: 8px;
+    padding: 8px 14px; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; font-size: 12.5px;
+    white-space: nowrap;
+  }
+  .btn-outline-dark:hover { border-color: var(--amber); color: var(--amber); }
+  .btn-outline-dark:disabled { opacity: 0.5; cursor: not-allowed; }
+
   .history-list { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; padding-right: 2px; }
   .entry-row { display: flex; align-items: center; justify-content: space-between; background: var(--ink-navy-3); border-radius: 8px; padding: 9px 12px; }
   .entry-row .date-txt { font-size: 13px; font-weight: 500; display: flex; flex-direction: column; gap: 2px; }
@@ -273,6 +288,11 @@
     <p class="sub">Weeks run Monday–Sunday. Any two consecutive weeks together must stay under 48 hours.</p>
   </header>
 
+  <div class="reminder-bar" id="reminderBar">
+    <span id="reminderStatusText">Reminders are off — you'll get an 8pm push if nothing's logged that day.</span>
+    <button id="reminderToggleBtn" class="btn-outline-dark">Enable reminders</button>
+  </div>
+
   <div id="errorBanner"></div>
 
   <div class="stamp-card">
@@ -358,7 +378,10 @@
     </div>
   </div>
 
-  <footer>Open this same link on any phone or PC — everyone sees the same log automatically.</footer>
+  <footer>
+    Open this same link on any phone or PC — everyone sees the same log automatically.<br>
+    <a href="/settings.html" style="color:rgba(243,238,221,0.4); text-decoration:underline;">Uni semester dates</a>
+  </footer>
 </div>
 </div>
 
@@ -567,6 +590,7 @@ function showPinLock(errorMsg) {
 function unlockApp() {
   document.getElementById('pinOverlay').style.display = 'none';
   document.getElementById('appRoot').style.display = 'block';
+  checkReminderStatus();
 }
 
 function handleUnauthorized() {
@@ -821,6 +845,99 @@ document.getElementById('closeReportBtn').addEventListener('click', closeReport)
 
 document.getElementById('printReportBtn').addEventListener('click', () => {
   window.print();
+});
+
+// ---- push reminders ----
+const VAPID_PUBLIC_KEY = 'BNRgdbOgmPoChCd1ENoBbKUe02kD-x_hqfA6XT4IQ26J8oFDne56YpWx9FB0gvQkiPJ3bjHzSlPxSgHZ9s6vUaw';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+function updateReminderUI(isOn) {
+  const bar = document.getElementById('reminderBar');
+  const btn = document.getElementById('reminderToggleBtn');
+  const text = document.getElementById('reminderStatusText');
+  bar.classList.toggle('on', isOn);
+  btn.textContent = isOn ? 'Disable reminders' : 'Enable reminders';
+  text.textContent = isOn
+    ? "Reminders are on — you'll get an 8pm push if nothing's logged that day."
+    : "Reminders are off — you'll get an 8pm push if nothing's logged that day.";
+}
+
+async function checkReminderStatus() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    document.getElementById('reminderBar').style.display = 'none';
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    updateReminderUI(!!sub);
+  } catch (e) {
+    updateReminderUI(false);
+  }
+}
+
+async function enableReminders() {
+  const btn = document.getElementById('reminderToggleBtn');
+  btn.disabled = true;
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      alert('Notifications were not allowed — check Settings > Notifications > Fortnight on the phone to enable them.');
+      return;
+    }
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    const res = await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ user: syncCode, pin, subscription: sub.toJSON() })
+    });
+    if (res.status === 401) { handleUnauthorized(); return; }
+    if (!res.ok) throw new Error('save failed');
+    updateReminderUI(true);
+  } catch (e) {
+    alert('Could not enable reminders — check your connection and try again.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function disableReminders() {
+  const btn = document.getElementById('reminderToggleBtn');
+  btn.disabled = true;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await fetch('/api/subscribe', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ user: syncCode, pin, endpoint: sub.endpoint })
+      });
+      await sub.unsubscribe();
+    }
+    updateReminderUI(false);
+  } catch (e) {
+    alert('Could not disable reminders — check your connection and try again.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('reminderToggleBtn').addEventListener('click', () => {
+  const isOn = document.getElementById('reminderBar').classList.contains('on');
+  if (isOn) { disableReminders(); } else { enableReminders(); }
 });
 
 // ---- boot ----
