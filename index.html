@@ -87,6 +87,17 @@
   .remaining-block.over .r-num { color: var(--rule-red); }
   .remaining-block .r-sub { font-size: 12px; color: var(--paper-text-dim); margin-top: 6px; }
 
+  .free-card { text-align: center; padding: 32px 22px; }
+  .free-badge {
+    display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--tally-green); background: rgba(91,146,121,0.12);
+    border: 1px solid rgba(91,146,121,0.35); border-radius: 999px; padding: 4px 12px; margin-bottom: 14px;
+  }
+  .free-title { font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 24px; margin-bottom: 8px; }
+  .free-sub { font-size: 13px; color: var(--paper-text-dim); max-width: 340px; margin: 0 auto; line-height: 1.5; }
+  .free-stat { font-size: 12.5px; color: var(--paper-text-dim); margin-top: 18px; font-style: italic; }
+  .free-stat b { color: var(--ink-text); font-style: normal; font-family: 'IBM Plex Mono', monospace; }
+
   .panel { background: var(--ink-navy-2); border: 1px solid rgba(243,238,221,0.08); border-radius: 14px; padding: 18px; margin-bottom: 18px; }
   .panel h2 { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(243,238,221,0.5); margin: 0 0 4px; }
   .week-total { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: rgba(243,238,221,0.65); margin-bottom: 10px; }
@@ -295,7 +306,7 @@
 
   <div id="errorBanner"></div>
 
-  <div class="stamp-card">
+  <div class="stamp-card" id="capCard">
     <div class="total-block">
       <div class="label">This fortnight (last 2 weeks)</div>
       <div class="num" id="totalNum">0.0<small> / 48 h</small></div>
@@ -310,6 +321,13 @@
       <div class="r-num" id="remainingNum">48.0<small>h</small></div>
       <div class="r-sub" id="remainingSub">before hitting the 48h cap</div>
     </div>
+  </div>
+
+  <div class="stamp-card free-card" id="freeCard" style="display:none;">
+    <div class="free-badge">On break</div>
+    <div class="free-title">No hour limit right now</div>
+    <div class="free-sub">Uni's on break — the 48-hour fortnight cap doesn't apply until study weeks resume.</div>
+    <div class="free-stat" id="freeStat"></div>
   </div>
 
   <div id="breachBanner"></div>
@@ -444,6 +462,44 @@ function mondayOf(dateStr) {
   return toStr(d);
 }
 
+// ---- semester dates -> restricted-week ranges ----
+// null = not loaded yet (or failed to load) — treated as "restricted"
+// everywhere it's used, so the cap never disappears just because the
+// settings fetch was slow or offline. Only flips to "free" once we've
+// positively confirmed via saved semester dates that it's a break week.
+let semesterRanges = null;
+
+function buildRestrictedRanges(semesterData) {
+  const ranges = [];
+  for (const val of Object.values(semesterData || {})) {
+    if (!val || !val.start || !val.end) continue;
+    const teachStartMonday = mondayOf(val.start);
+    const teachEndMonday = mondayOf(val.end);
+    ranges.push({
+      bufferBefore: shiftDate(teachStartMonday, -7),
+      bufferAfter: shiftDate(teachEndMonday, 7)
+    });
+  }
+  return ranges;
+}
+function isRestrictedWeek(weekMonday, ranges) {
+  if (ranges === null) return true; // unknown -> safe default is "capped"
+  return ranges.some(r => weekMonday >= r.bufferBefore && weekMonday <= r.bufferAfter);
+}
+
+async function fetchSemesters() {
+  try {
+    const res = await fetch(`/api/semesters?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`);
+    if (res.status === 401) { handleUnauthorized(); return; }
+    if (!res.ok) throw new Error('bad response');
+    const data = await res.json();
+    semesterRanges = buildRestrictedRanges(data);
+  } catch (e) {
+    // leave semesterRanges as-is (null on first load = safe "capped" default)
+  }
+  render();
+}
+
 function dailyTotals() {
   const map = {};
   for (const e of entries) map[e.date] = (map[e.date] || 0) + e.hours;
@@ -505,6 +561,15 @@ function render() {
   const curTotal = weekTotal(curMonday, map);
   const prevTotal = weekTotal(prevMonday, map);
   const fortnightTotal = curTotal + prevTotal;
+
+  const restrictedNow = isRestrictedWeek(curMonday, semesterRanges);
+  document.getElementById('capCard').style.display = restrictedNow ? 'block' : 'none';
+  document.getElementById('freeCard').style.display = restrictedNow ? 'none' : 'block';
+  if (!restrictedNow) {
+    document.getElementById('freeStat').innerHTML = fortnightTotal > 0
+      ? `<b>${fortnightTotal.toFixed(1)}h</b> logged this fortnight — no cap applies`
+      : `No hours logged this fortnight — none required while uni's on break`;
+  }
 
   document.getElementById('prevWeekLabel').textContent = `Previous week (${fmtShort(prevMonday)} – ${fmtShort(shiftDate(prevMonday,6))})`;
   document.getElementById('curWeekLabel').textContent = `This week (${fmtShort(curMonday)} – ${fmtShort(shiftDate(curMonday,6))})`;
@@ -591,6 +656,7 @@ function unlockApp() {
   document.getElementById('pinOverlay').style.display = 'none';
   document.getElementById('appRoot').style.display = 'block';
   checkReminderStatus();
+  fetchSemesters();
 }
 
 function handleUnauthorized() {
