@@ -16,10 +16,22 @@ no accounts, no per-device setup.
 ## 1. Push this to GitHub
 
 1. Create a new repo on GitHub (public or private — doesn't matter), e.g. `hours-log`.
-2. Copy these three files/folders into it, keeping the structure exactly as-is:
+2. Copy these files/folders into it, keeping the structure exactly as-is:
    ```
    hours-log/
      index.html
+     manifest.json
+     sw.js
+     favicon.ico
+     icons/
+       apple-touch-icon.png
+       apple-touch-icon-152.png
+       apple-touch-icon-167.png
+       icon-192.png
+       icon-512.png
+       icon-512-maskable.png
+       favicon-32.png
+       favicon-16.png
      functions/
        api/
          entries.js
@@ -129,3 +141,42 @@ a week in half. It generates a printable report with:
 Click **Print / Save as PDF** in the report view and use your browser's
 print dialog to save it as a PDF — the report is styled to print cleanly
 on its own, without the rest of the app's dark background.
+
+## Installing it as an app on iPhone (PWA)
+
+The site is now a proper installable app, called **Fortnight**, with its
+own icon (the "48" mark). No App Store, no extra setup beyond deploying
+the files above.
+
+To install on an iPhone:
+
+1. Open the site URL in **Safari** (it has to be Safari — Chrome and
+   other iOS browsers can't install PWAs to the home screen).
+2. Tap the **Share** button (the square with an arrow, in the bottom bar).
+3. Scroll down and tap **Add to Home Screen**.
+4. Tap **Add** in the top right.
+
+The Fortnight icon now appears on the home screen like any other app. It
+launches full-screen — no Safari address bar or browser chrome — and
+works exactly the same as opening it in a browser tab underneath.
+
+A few real limitations worth knowing about, all specific to how iOS
+handles home-screen web apps:
+
+- **No install banner.** iOS doesn't prompt anyone to install — each
+  person has to do the Share → Add to Home Screen steps above manually.
+  There's no way to shortcut this from the web page itself.
+- **Works offline for viewing**, thanks to `sw.js`, which caches the app
+  shell. It can't save or sync new hours without a connection, same as
+  before — that part still needs the network.
+- **The PIN may need re-entering once** if the app is ever removed and
+  re-added to the home screen — iOS can clear that site's local storage
+  when a home-screen app is deleted. Not a bug, just how iOS treats
+  reinstalls.
+- **No push notifications** — iOS doesn't support these for home-screen
+  web apps. Not something built here, just flagging it in case it comes
+  up later.
+
+Everything else — the PIN, the shared log, the export reports — works
+identically whether it's opened as a home-screen app or a regular Safari
+tab.
