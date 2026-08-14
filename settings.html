@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Fortnight — Semester Dates</title>
+
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#101b26">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fortnight">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink-navy: #101b26;
+    --ink-navy-2: #17293b;
+    --ink-navy-3: #1f3348;
+    --paper: #f3eedd;
+    --paper-dim: #e4dcc3;
+    --rule-red: #c1443a;
+    --rule-red-dim: #8f342c;
+    --tally-green: #5b9279;
+    --amber: #d9a44a;
+    --ink-text: #1b2a3d;
+    --paper-text-dim: #6b6250;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(ellipse at top, var(--ink-navy-2), var(--ink-navy) 65%);
+    color: var(--paper);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: calc(28px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+
+  .back-link {
+    display: inline-block; margin-bottom: 18px; color: rgba(243,238,221,0.5);
+    font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; text-decoration: none;
+  }
+  .back-link:hover { color: var(--amber); }
+
+  header { text-align: center; margin-bottom: 22px; }
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.28em; color: var(--amber);
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  h1 { font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 26px; letter-spacing: 0.03em; margin: 0 0 6px; }
+  .sub { color: rgba(243,238,221,0.55); font-size: 13.5px; max-width: 480px; margin: 0 auto; line-height: 1.55; }
+
+  .panel {
+    background: var(--ink-navy-2); border: 1px solid rgba(243,238,221,0.08); border-radius: 14px;
+    padding: 18px; margin-bottom: 16px;
+  }
+  .year-heading {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--amber); margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(243,238,221,0.1);
+  }
+  .sem-row { margin-bottom: 18px; }
+  .sem-row:last-child { margin-bottom: 0; }
+  .sem-label { font-size: 13.5px; font-weight: 600; margin-bottom: 8px; }
+  .sem-fields { display: flex; gap: 8px; flex-wrap: wrap; }
+  .field { flex: 1; min-width: 140px; }
+  .field label {
+    display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: rgba(243,238,221,0.45); margin-bottom: 5px;
+  }
+  input[type="date"] {
+    width: 100%; background: var(--ink-navy); border: 1px solid rgba(243,238,221,0.15); color: var(--paper);
+    border-radius: 8px; padding: 10px; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.9); }
+  input:focus { outline: 2px solid var(--amber); outline-offset: 1px; }
+
+  .note {
+    background: rgba(217,164,74,0.08); border: 1px solid rgba(217,164,74,0.25); border-radius: 10px;
+    padding: 12px 14px; font-size: 12.5px; color: rgba(243,238,221,0.7); line-height: 1.5; margin-bottom: 18px;
+  }
+
+  .save-btn {
+    width: 100%; background: var(--amber); color: var(--ink-navy); border: none; border-radius: 8px;
+    height: 46px; font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; font-size: 15px; cursor: pointer;
+  }
+  .save-btn:hover { filter: brightness(1.06); }
+  .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .save-status { text-align: center; font-size: 12.5px; margin-top: 10px; min-height: 16px; color: var(--tally-green); }
+  .save-status.error { color: var(--rule-red); }
+
+  /* ---- PIN lock (same pattern as the main app) ---- */
+  .pin-overlay {
+    position: fixed; inset: 0; z-index: 2000;
+    background: radial-gradient(ellipse at top, var(--ink-navy-2), var(--ink-navy) 65%);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .pin-card {
+    background: var(--paper); color: var(--ink-text); border-radius: 14px; padding: 28px 24px;
+    max-width: 320px; width: 100%; text-align: center; box-shadow: 0 18px 40px -18px rgba(0,0,0,0.6);
+  }
+  .pin-card h1 { font-size: 22px; margin: 0 0 8px; }
+  .pin-card .sub { color: var(--paper-text-dim); margin-bottom: 18px; }
+  .pin-card input {
+    width: 100%; text-align: center; letter-spacing: 0.4em; font-size: 20px; font-family: 'IBM Plex Mono', monospace;
+    background: #fff; border: 1px solid rgba(27,42,61,0.2); color: var(--ink-text); border-radius: 8px; padding: 12px 10px;
+  }
+  .pin-card button {
+    width: 100%; margin-top: 12px; background: var(--amber); color: var(--ink-navy); border: none;
+    border-radius: 8px; height: 40px; font-weight: 600; cursor: pointer;
+  }
+  .pin-error { color: var(--rule-red); font-size: 12.5px; margin-top: 10px; min-height: 16px; }
+</style>
+</head>
+<body>
+
+<div id="pinOverlay" class="pin-overlay">
+  <div class="pin-card">
+    <div class="eyebrow">Private log</div>
+    <h1>Enter PIN</h1>
+    <p class="sub">Enter the shared PIN to edit semester dates.</p>
+    <form id="pinForm">
+      <input type="password" inputmode="numeric" id="pinInput" placeholder="••••" maxlength="12" autocomplete="off" required>
+      <button type="submit">Unlock</button>
+    </form>
+    <div class="pin-error" id="pinError"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+<div class="wrap">
+
+  <a href="/" class="back-link">← Back to Fortnight</a>
+
+  <header>
+    <div class="eyebrow">Settings</div>
+    <h1>SEMESTER DATES</h1>
+    <p class="sub">The 48-hour fortnight cap only applies during uni study periods. Enter the start and end date of each semester below — leave a semester blank if the dates aren't confirmed yet.</p>
+  </header>
+
+  <div class="note">
+    <b>Start date</b> = the Monday of the first teaching week. <b>End date</b> = the Sunday of the last teaching/exam week. The app automatically treats the week just before and just after each semester as still restricted too, since it overlaps a study week in the rolling fortnight.
+  </div>
+
+  <div id="errorBanner"></div>
+
+  <form id="semesterForm">
+    <div class="panel">
+      <div class="year-heading">2026</div>
+      <div class="sem-row" data-id="s2-2026">
+        <div class="sem-label">Semester 2, 2026</div>
+        <div class="sem-fields">
+          <div class="field"><label>Start date</label><input type="date" class="start-input"></div>
+          <div class="field"><label>End date</label><input type="date" class="end-input"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="year-heading">2027</div>
+      <div class="sem-row" data-id="s1-2027">
+        <div class="sem-label">Semester 1, 2027</div>
+        <div class="sem-fields">
+          <div class="field"><label>Start date</label><input type="date" class="start-input"></div>
+          <div class="field"><label>End date</label><input type="date" class="end-input"></div>
+        </div>
+      </div>
+      <div class="sem-row" data-id="s2-2027">
+        <div class="sem-label">Semester 2, 2027</div>
+        <div class="sem-fields">
+          <div class="field"><label>Start date</label><input type="date" class="start-input"></div>
+          <div class="field"><label>End date</label><input type="date" class="end-input"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="year-heading">2028</div>
+      <div class="sem-row" data-id="s1-2028">
+        <div class="sem-label">Semester 1, 2028</div>
+        <div class="sem-fields">
+          <div class="field"><label>Start date</label><input type="date" class="start-input"></div>
+          <div class="field"><label>End date</label><input type="date" class="end-input"></div>
+        </div>
+      </div>
+      <div class="sem-row" data-id="s2-2028">
+        <div class="sem-label">Semester 2, 2028</div>
+        <div class="sem-fields">
+          <div class="field"><label>Start date</label><input type="date" class="start-input"></div>
+          <div class="field"><label>End date</label><input type="date" class="end-input"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="year-heading">2029</div>
+      <div class="sem-row" data-id="s1-2029">
+        <div class="sem-label">Semester 1, 2029</div>
+        <div class="sem-fields">
+          <div class="field"><label>Start date</label><input type="date" class="start-input"></div>
+          <div class="field"><label>End date</label><input type="date" class="end-input"></div>
+        </div>
+      </div>
+      <div class="sem-row" data-id="s2-2029">
+        <div class="sem-label">Semester 2, 2029</div>
+        <div class="sem-fields">
+          <div class="field"><label>Start date</label><input type="date" class="start-input"></div>
+          <div class="field"><label>End date</label><input type="date" class="end-input"></div>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="save-btn" id="saveBtn">Save semester dates</button>
+    <div class="save-status" id="saveStatus"></div>
+  </form>
+
+</div>
+</div>
+
+<script>
+const API = '/api/semesters';
+const syncCode = 'household-hours-log'; // must match index.html
+const PIN_KEY = 'htk_pin';
+let pin = null;
+
+function showError(msg) {
+  document.getElementById('errorBanner').innerHTML = msg
+    ? `<div style="background:rgba(193,68,58,0.12);border:1px solid var(--rule-red-dim);color:#f3d4d0;border-radius:10px;padding:10px 14px;font-size:12.5px;margin-bottom:18px;">${msg}</div>`
+    : '';
+}
+
+function showPinLock(errorMsg) {
+  document.getElementById('pinOverlay').style.display = 'flex';
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('pinError').textContent = errorMsg || '';
+  const input = document.getElementById('pinInput');
+  input.value = '';
+  setTimeout(() => input.focus(), 50);
+}
+
+function unlockApp() {
+  document.getElementById('pinOverlay').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+}
+
+function handleUnauthorized() {
+  localStorage.removeItem(PIN_KEY);
+  pin = null;
+  showPinLock('Incorrect PIN — try again.');
+}
+
+function rowsById() {
+  const map = {};
+  document.querySelectorAll('.sem-row').forEach(row => {
+    map[row.dataset.id] = {
+      start: row.querySelector('.start-input'),
+      end: row.querySelector('.end-input')
+    };
+  });
+  return map;
+}
+
+async function loadSemesters() {
+  if (!pin) { showPinLock(); return; }
+  try {
+    const res = await fetch(`${API}?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`);
+    if (res.status === 401) { handleUnauthorized(); return; }
+    if (!res.ok) throw new Error('bad response');
+    const data = await res.json();
+    localStorage.setItem(PIN_KEY, pin);
+    unlockApp();
+    showError('');
+    const rows = rowsById();
+    for (const [id, fields] of Object.entries(rows)) {
+      const val = data[id];
+      if (val) {
+        fields.start.value = val.start || '';
+        fields.end.value = val.end || '';
+      }
+    }
+  } catch (e) {
+    showError('Could not load saved semester dates — check your connection.');
+  }
+}
+
+document.getElementById('pinForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const val = document.getElementById('pinInput').value.trim();
+  if (!val) return;
+  pin = val;
+  await loadSemesters();
+});
+
+document.getElementById('semesterForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const rows = rowsById();
+  const semesters = {};
+  for (const [id, fields] of Object.entries(rows)) {
+    const start = fields.start.value || '';
+    const end = fields.end.value || '';
+    if (start && end && end < start) {
+      document.getElementById('saveStatus').textContent = `${id}: end date is before start date.`;
+      document.getElementById('saveStatus').classList.add('error');
+      return;
+    }
+    semesters[id] = { start, end };
+  }
+
+  const btn = document.getElementById('saveBtn');
+  const status = document.getElementById('saveStatus');
+  btn.disabled = true;
+  status.classList.remove('error');
+  status.textContent = 'Saving…';
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ user: syncCode, pin, semesters })
+    });
+    if (res.status === 401) { handleUnauthorized(); return; }
+    if (!res.ok) throw new Error('save failed');
+    status.textContent = 'Saved.';
+    status.classList.remove('error');
+  } catch (e) {
+    status.textContent = 'Could not save — check your connection and try again.';
+    status.classList.add('error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---- boot ----
+pin = localStorage.getItem(PIN_KEY);
+if (pin) {
+  loadSemesters();
+} else {
+  showPinLock();
+}
+</script>
+</body>
+</html>
