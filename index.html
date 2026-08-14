@@ -2,8 +2,26 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hours Log — Fortnight Cap Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Fortnight — Hours Log</title>
+
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#101b26">
+
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="/icons/favicon-16.png" sizes="16x16" type="image/png">
+
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-touch-icon-152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-touch-icon-167.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fortnight">
+<meta name="mobile-web-app-capable" content="yes">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
@@ -27,7 +45,7 @@
     color: var(--paper);
     font-family: 'IBM Plex Sans', sans-serif;
     min-height: 100vh;
-    padding: 28px 16px 60px;
+    padding: calc(28px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
   }
   .wrap { max-width: 640px; margin: 0 auto; }
 
@@ -145,7 +163,8 @@
   .pin-card button { width: 100%; margin-top: 12px; }
   .pin-error { color: var(--rule-red); font-size: 12.5px; margin-top: 10px; min-height: 16px; }
   .lock-link {
-    position: fixed; top: 14px; right: 16px; background: none; border: none;
+    position: fixed; top: calc(14px + env(safe-area-inset-top)); right: calc(16px + env(safe-area-inset-right));
+    background: none; border: none;
     color: rgba(243,238,221,0.35); font-size: 11px; cursor: pointer; font-family: 'IBM Plex Mono', monospace;
     letter-spacing: 0.06em; text-transform: uppercase;
   }
@@ -810,6 +829,12 @@ if (pin) {
   loadEntries();
 } else {
   showPinLock();
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
 }
 </script>
 </body>
