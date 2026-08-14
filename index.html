@@ -73,6 +73,14 @@
   }
   .gauge-note { margin-top: 20px; font-size: 12.5px; color: var(--paper-text-dim); }
 
+  .remaining-block { margin-top: 18px; padding-top: 16px; border-top: 1px dashed rgba(27,42,61,0.18); text-align: center; }
+  .remaining-block .r-label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--paper-text-dim); margin-bottom: 4px; }
+  .remaining-block .r-num { font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 64px; line-height: 1; color: var(--tally-green); }
+  .remaining-block .r-num small { font-size: 26px; font-weight: 400; color: var(--paper-text-dim); }
+  .remaining-block.warn .r-num { color: var(--amber); }
+  .remaining-block.over .r-num { color: var(--rule-red); }
+  .remaining-block .r-sub { font-size: 12px; color: var(--paper-text-dim); margin-top: 6px; }
+
   .panel { background: var(--ink-navy-2); border: 1px solid rgba(243,238,221,0.08); border-radius: 14px; padding: 18px; margin-bottom: 18px; }
   .panel h2 { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(243,238,221,0.5); margin: 0 0 4px; }
   .week-total { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: rgba(243,238,221,0.65); margin-bottom: 10px; }
@@ -166,50 +174,63 @@
 
   /* ---- report overlay ---- */
   .report-overlay {
-    display: none; position: fixed; inset: 0; background: rgba(16,27,38,0.92);
-    z-index: 2100; overflow-y: auto; padding: 24px 12px 60px;
+    display: none; position: fixed; inset: 0; background: var(--ink-navy);
+    z-index: 2100; overflow-y: auto; -webkit-overflow-scrolling: touch;
   }
   .report-sheet {
-    max-width: 720px; margin: 0 auto; background: #fff; color: var(--ink-text);
-    border-radius: 10px; padding: 34px 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    max-width: 720px; margin: 0 auto; min-height: 100%; background: #fff; color: var(--ink-text);
+    padding: 28px 22px 60px;
   }
-  .report-toolbar { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 18px; }
+  .report-toolbar {
+    display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 22px;
+    position: sticky; top: 0; background: #fff; padding: 12px 0; z-index: 5;
+    border-bottom: 1px solid var(--paper-dim);
+  }
   .btn-outline {
     background: none; border: 1px solid rgba(27,42,61,0.25); color: var(--ink-text); border-radius: 8px;
     padding: 0 16px; height: 40px; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px;
   }
   .btn-outline:hover { background: rgba(27,42,61,0.06); }
 
-  .rpt-header { text-align: center; border-bottom: 2px solid var(--ink-text); padding-bottom: 16px; margin-bottom: 22px; }
+  .rpt-header { text-align: center; border-bottom: 2px solid var(--ink-text); padding-bottom: 16px; margin-bottom: 24px; }
   .rpt-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--rule-red-dim); margin-bottom: 6px; }
   .rpt-title { font-family: 'Courier Prime', monospace; font-size: 26px; margin: 0 0 6px; }
   .rpt-range { font-family: 'IBM Plex Mono', monospace; font-size: 14px; margin-bottom: 4px; }
   .rpt-meta { font-size: 11px; color: var(--paper-text-dim); }
 
-  .rpt-section { margin-bottom: 26px; }
-  .rpt-section h3 { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--paper-text-dim); border-bottom: 1px solid var(--paper-dim); padding-bottom: 6px; margin-bottom: 10px; }
+  .rpt-section { margin-bottom: 30px; }
+  .rpt-section h3 { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--paper-text-dim); border-bottom: 1px solid var(--paper-dim); padding-bottom: 6px; margin: 0 0 12px; }
 
-  .rpt-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .rpt-table th { text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--paper-text-dim); border-bottom: 1px solid var(--ink-text); padding: 6px 8px; }
-  .rpt-table td { padding: 6px 8px; border-bottom: 1px solid var(--paper-dim); }
-  .rpt-table .num-cell { text-align: right; font-family: 'IBM Plex Mono', monospace; }
-  .rpt-table .status-cell { text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; }
+  .rpt-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  .rpt-table th { text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--paper-text-dim); border-bottom: 1.5px solid var(--ink-text); padding: 7px 6px; }
+  .rpt-table td { padding: 7px 6px; border-bottom: 1px solid var(--paper-dim); overflow: hidden; text-overflow: ellipsis; }
+  .rpt-table .num-cell { text-align: right; font-family: 'IBM Plex Mono', monospace; white-space: nowrap; }
+  .rpt-table .status-cell { text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; white-space: nowrap; }
   .rpt-table .muted-cell { color: var(--paper-text-dim); font-style: italic; }
   .rpt-table tr.over-row td { color: var(--rule-red); font-weight: 600; }
 
-  .rpt-week { margin-bottom: 18px; }
+  /* detail table column widths so times/hours never collide */
+  .rpt-detail col.c-date { width: 42%; }
+  .rpt-detail col.c-time { width: 26%; }
+  .rpt-detail col.c-break { width: 14%; }
+  .rpt-detail col.c-hours { width: 18%; }
+  .rpt-detail .time-cell { font-family: 'IBM Plex Mono', monospace; font-size: 12px; white-space: nowrap; }
+
+  .rpt-week { margin-bottom: 22px; }
   .rpt-week-head {
-    display: flex; justify-content: space-between; font-family: 'Courier Prime', monospace;
-    font-weight: 700; font-size: 14px; margin-bottom: 6px; border-bottom: 1px solid var(--ink-text); padding-bottom: 4px;
+    display: flex; justify-content: space-between; align-items: baseline; font-family: 'Courier Prime', monospace;
+    font-weight: 700; font-size: 15px; margin-bottom: 8px; border-bottom: 1.5px solid var(--ink-text); padding-bottom: 5px;
   }
   .rpt-week-total { color: var(--tally-green); }
 
   @media print {
     body * { visibility: hidden; }
     .report-overlay, .report-overlay * { visibility: visible; }
-    .report-overlay { position: absolute; inset: 0; background: #fff; padding: 0; }
-    .report-sheet { box-shadow: none; max-width: 100%; }
+    .report-overlay { position: absolute; inset: 0; background: #fff; overflow: visible; }
+    .report-sheet { max-width: 100%; padding: 0 12px; }
+    .report-toolbar { display: none !important; }
     .no-print { display: none !important; }
+    .rpt-week { page-break-inside: avoid; }
   }
 </style>
 </head>
@@ -257,6 +278,11 @@
       <div class="gauge-cap"></div>
     </div>
     <div class="gauge-note" id="gaugeNote">No hours logged this fortnight.</div>
+    <div class="remaining-block" id="remainingBlock">
+      <div class="r-label">Hours left this fortnight</div>
+      <div class="r-num" id="remainingNum">48.0<small>h</small></div>
+      <div class="r-sub" id="remainingSub">before hitting the 48h cap</div>
+    </div>
   </div>
 
   <div id="breachBanner"></div>
@@ -468,6 +494,20 @@ function render() {
     ? 'No hours logged this fortnight.'
     : `${fortnightTotal.toFixed(1)}h combined across the previous and current week.`;
 
+  // Big remaining-hours readout
+  const remBlock = document.getElementById('remainingBlock');
+  const remNum = document.getElementById('remainingNum');
+  const remSub = document.getElementById('remainingSub');
+  remBlock.classList.remove('warn','over');
+  if (fortnightTotal > 48) {
+    remBlock.classList.add('over');
+    remNum.innerHTML = (fortnightTotal - 48).toFixed(1) + '<small>h</small>';
+    remSub.textContent = 'over the 48h cap';
+  } else {
+    if (fortnightTotal >= 40) remBlock.classList.add('warn');
+    remNum.innerHTML = remaining.toFixed(1) + '<small>h</small>';
+    remSub.textContent = 'before hitting the 48h cap';
+  }
   const breaches = findBreaches(map);
   const banner = document.getElementById('breachBanner');
   if (breaches.length > 0) {
@@ -660,10 +700,6 @@ function populateWeekSelects() {
 }
 
 // ---- export: build & show report ----
-function fmtFull(dateStr) {
-  return parseDate(dateStr).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-}
-
 function buildReport(fromMonday, toMonday) {
   const map = dailyTotals();
   const weeks = [];
@@ -694,15 +730,17 @@ function buildReport(fromMonday, toMonday) {
       ? weekEntries.map(e => {
           const timeTxt = (e.start && e.finish) ? `${e.start}–${e.finish}` : '—';
           const breakTxt = e.breakMinutes ? `${e.breakMinutes}m` : '—';
-          return `<tr><td>${fmtFull(e.date)}</td><td>${timeTxt}</td><td>${breakTxt}</td><td class="num-cell">${e.hours.toFixed(2)}h</td></tr>`;
+          const dayTxt = parseDate(e.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+          return `<tr><td>${dayTxt}</td><td class="time-cell">${timeTxt}</td><td class="num-cell">${breakTxt}</td><td class="num-cell">${e.hours.toFixed(2)}h</td></tr>`;
         }).join('')
       : `<tr><td colspan="4" class="muted-cell">No entries this week.</td></tr>`;
     const total = weekTotal(w, map);
     return `
       <div class="rpt-week">
         <div class="rpt-week-head"><span>${fmtShort(w)} – ${fmtShort(shiftDate(w,6))}</span><span class="rpt-week-total">${total.toFixed(2)}h</span></div>
-        <table class="rpt-table">
-          <thead><tr><th>Date</th><th>Time</th><th>Break</th><th>Hours</th></tr></thead>
+        <table class="rpt-table rpt-detail">
+          <colgroup><col class="c-date"><col class="c-time"><col class="c-break"><col class="c-hours"></colgroup>
+          <thead><tr><th>Date</th><th>Time</th><th class="num-cell">Break</th><th class="num-cell">Hours</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
