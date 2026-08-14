@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Fortnight — Hours Log</title>
+<title>Fortnight</title>
 
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#101b26">
@@ -268,8 +268,8 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">Fortnight cap tracker</div>
-    <h1>HOURS LOG</h1>
+    <div class="eyebrow">Cap tracker</div>
+    <h1>FORTNIGHT</h1>
     <p class="sub">Weeks run Monday–Sunday. Any two consecutive weeks together must stay under 48 hours.</p>
   </header>
 
@@ -766,7 +766,7 @@ function buildReport(fromMonday, toMonday, mode) {
 
   document.getElementById('reportContent').innerHTML = `
     <div class="rpt-header">
-      <div class="rpt-eyebrow">Fortnight Cap Tracker</div>
+      <div class="rpt-eyebrow">Fortnight</div>
       <h2 class="rpt-title">${titleText}</h2>
       <div class="rpt-range">${fmtShort(fromMonday)} – ${fmtShort(shiftDate(toMonday,6))}</div>
       <div class="rpt-meta">Generated ${generated} · 48h rolling fortnight limit</div>
