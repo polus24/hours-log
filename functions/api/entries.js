@@ -37,6 +37,9 @@ export async function onRequestPost(context) {
   const user = body.user;
   const date = body.date;
   const hours = Number(body.hours);
+  const start = body.start || null;
+  const finish = body.finish || null;
+  const breakMinutes = Number.isFinite(Number(body.breakMinutes)) ? Number(body.breakMinutes) : 0;
 
   if (!user || !date || !Number.isFinite(hours) || hours <= 0 || hours > 24) {
     return json({ error: "invalid entry" }, 400);
@@ -46,7 +49,7 @@ export async function onRequestPost(context) {
   const raw = await env.HOURS_KV.get(key);
   const entries = raw ? JSON.parse(raw) : [];
 
-  const entry = { id: crypto.randomUUID(), date, hours };
+  const entry = { id: crypto.randomUUID(), date, hours, start, finish, breakMinutes };
   entries.push(entry);
 
   await env.HOURS_KV.put(key, JSON.stringify(entries));
