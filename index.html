@@ -48,21 +48,9 @@
   .stamp-card::before {
     content: ""; position: absolute; inset: 8px; border: 1px dashed rgba(27,42,61,0.18); border-radius: 8px; pointer-events: none;
   }
-  .stamp-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .total-block .label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--paper-text-dim); margin-bottom: 4px; }
   .total-block .num { font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 46px; line-height: 1; }
   .total-block .num small { font-size: 20px; color: var(--paper-text-dim); font-weight: 400; }
-
-  .stamp {
-    font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
-    border: 3px solid currentColor; border-radius: 50%; width: 92px; height: 92px;
-    display: flex; align-items: center; justify-content: center; text-align: center;
-    transform: rotate(-9deg); line-height: 1.15; flex-shrink: 0;
-  }
-  .stamp.ok { color: var(--tally-green); }
-  .stamp.warn { color: var(--amber); }
-  .stamp.over { color: var(--rule-red); }
-  .stamp .small { display:block; font-size: 9px; letter-spacing: 0.06em; opacity: 0.8; margin-top: 2px; }
 
   .gauge { margin-top: 18px; height: 10px; border-radius: 6px; background: var(--paper-dim); position: relative; overflow: visible; }
   .gauge-fill { height: 100%; border-radius: 6px; transition: width 0.4s ease, background 0.4s ease; }
@@ -172,18 +160,24 @@
   }
   select:focus { outline: 2px solid var(--amber); outline-offset: 1px; }
 
-  /* ---- report overlay ---- */
-  .report-overlay {
-    display: none; position: fixed; inset: 0; background: var(--ink-navy);
-    z-index: 2100; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  .report-mode-chooser { display: none; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .mode-btn {
+    flex: 1; min-width: 140px; background: var(--ink-navy-3); border: 1px solid rgba(243,238,221,0.15);
+    color: var(--paper); border-radius: 10px; padding: 14px 12px; cursor: pointer; text-align: left;
+    font-family: 'IBM Plex Sans', sans-serif;
   }
-  .report-sheet {
-    max-width: 720px; margin: 0 auto; min-height: 100%; background: #fff; color: var(--ink-text);
-    padding: 28px 22px 60px;
-  }
+  .mode-btn:hover { border-color: var(--amber); }
+  .mode-btn .mb-title { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+  .mode-btn .mb-sub { font-size: 11.5px; color: rgba(243,238,221,0.5); line-height: 1.4; }
+
+  /* ---- report page (replaces app view, not an overlay) ---- */
+  body.report-open { background: #fff; padding: 0; }
+  body.report-open #pinOverlay, body.report-open .lock-link { display: none !important; }
+  .report-overlay { display: none; background: #fff; color: var(--ink-text); min-height: 100vh; }
+  .report-sheet { max-width: 720px; margin: 0 auto; padding: 20px 18px 60px; }
   .report-toolbar {
     display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 22px;
-    position: sticky; top: 0; background: #fff; padding: 12px 0; z-index: 5;
+    position: sticky; top: 0; background: #fff; padding: 14px 0; z-index: 5;
     border-bottom: 1px solid var(--paper-dim);
   }
   .btn-outline {
@@ -263,15 +257,9 @@
   <div id="errorBanner"></div>
 
   <div class="stamp-card">
-    <div class="stamp-row">
-      <div class="total-block">
-        <div class="label">This fortnight (last 2 weeks)</div>
-        <div class="num" id="totalNum">0.0<small> / 48 h</small></div>
-      </div>
-      <div class="stamp ok" id="stampBadge">
-        <span id="stampMain">CLEAR</span>
-        <span class="small" id="stampSub">0.0h left</span>
-      </div>
+    <div class="total-block">
+      <div class="label">This fortnight (last 2 weeks)</div>
+      <div class="num" id="totalNum">0.0<small> / 48 h</small></div>
     </div>
     <div class="gauge">
       <div class="gauge-fill" id="gaugeFill" style="width:0%"></div>
@@ -327,7 +315,7 @@
 
   <div class="panel">
     <h2>Export report</h2>
-    <p class="export-note">Pick full weeks (Mon–Sun) to include — the report shows every entry plus the running fortnight totals.</p>
+    <p class="export-note">Pick full weeks (Mon–Sun) to include.</p>
     <div class="export-row">
       <div class="field">
         <label for="fromWeekSelect">From week</label>
@@ -339,6 +327,16 @@
       </div>
     </div>
     <button id="generateReportBtn" class="add-btn" style="margin-top:12px; width:100%;">Generate report</button>
+    <div class="report-mode-chooser" id="reportModeChooser">
+      <button class="mode-btn" id="modeSummaryBtn">
+        <div class="mb-title">Weekly summary</div>
+        <div class="mb-sub">Weekly &amp; running fortnight totals only — no daily breakdown.</div>
+      </button>
+      <button class="mode-btn" id="modeDetailBtn">
+        <div class="mb-title">Full daily report</div>
+        <div class="mb-sub">Summary totals plus every logged entry, day by day.</div>
+      </button>
+    </div>
   </div>
 
   <footer>Open this same link on any phone or PC — everyone sees the same log automatically.</footer>
@@ -478,18 +476,8 @@ function render() {
   document.getElementById('totalNum').innerHTML = fortnightTotal.toFixed(1) + '<small> / 48 h</small>';
   const fill = document.getElementById('gaugeFill');
   fill.style.width = pct + '%';
+  fill.style.background = fortnightTotal > 48 ? 'var(--rule-red)' : (fortnightTotal >= 40 ? 'var(--amber)' : 'var(--tally-green)');
 
-  const badge = document.getElementById('stampBadge');
-  const main = document.getElementById('stampMain');
-  const sub = document.getElementById('stampSub');
-  badge.classList.remove('ok','warn','over');
-  if (fortnightTotal > 48) {
-    badge.classList.add('over'); main.textContent = 'OVER'; sub.textContent = (fortnightTotal-48).toFixed(1)+'h over'; fill.style.background = 'var(--rule-red)';
-  } else if (fortnightTotal >= 40) {
-    badge.classList.add('warn'); main.textContent = 'CAUTION'; sub.textContent = remaining.toFixed(1)+'h left'; fill.style.background = 'var(--amber)';
-  } else {
-    badge.classList.add('ok'); main.textContent = 'CLEAR'; sub.textContent = remaining.toFixed(1)+'h left'; fill.style.background = 'var(--tally-green)';
-  }
   document.getElementById('gaugeNote').textContent = fortnightTotal === 0
     ? 'No hours logged this fortnight.'
     : `${fortnightTotal.toFixed(1)}h combined across the previous and current week.`;
@@ -700,7 +688,7 @@ function populateWeekSelects() {
 }
 
 // ---- export: build & show report ----
-function buildReport(fromMonday, toMonday) {
+function buildReport(fromMonday, toMonday, mode) {
   const map = dailyTotals();
   const weeks = [];
   let cursor = fromMonday;
@@ -724,34 +712,43 @@ function buildReport(fromMonday, toMonday) {
     }
   }
 
-  const detailSections = weeks.map(w => {
-    const weekEntries = entries.filter(e => e.date >= w && e.date <= shiftDate(w,6)).sort((a,b) => a.date.localeCompare(b.date));
-    const rows = weekEntries.length
-      ? weekEntries.map(e => {
-          const timeTxt = (e.start && e.finish) ? `${e.start}–${e.finish}` : '—';
-          const breakTxt = e.breakMinutes ? `${e.breakMinutes}m` : '—';
-          const dayTxt = parseDate(e.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-          return `<tr><td>${dayTxt}</td><td class="time-cell">${timeTxt}</td><td class="num-cell">${breakTxt}</td><td class="num-cell">${e.hours.toFixed(2)}h</td></tr>`;
-        }).join('')
-      : `<tr><td colspan="4" class="muted-cell">No entries this week.</td></tr>`;
-    const total = weekTotal(w, map);
-    return `
-      <div class="rpt-week">
-        <div class="rpt-week-head"><span>${fmtShort(w)} – ${fmtShort(shiftDate(w,6))}</span><span class="rpt-week-total">${total.toFixed(2)}h</span></div>
-        <table class="rpt-table rpt-detail">
-          <colgroup><col class="c-date"><col class="c-time"><col class="c-break"><col class="c-hours"></colgroup>
-          <thead><tr><th>Date</th><th>Time</th><th class="num-cell">Break</th><th class="num-cell">Hours</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
+  let detailBlock = '';
+  if (mode === 'detail') {
+    const detailSections = weeks.map(w => {
+      const weekEntries = entries.filter(e => e.date >= w && e.date <= shiftDate(w,6)).sort((a,b) => a.date.localeCompare(b.date));
+      const rows = weekEntries.length
+        ? weekEntries.map(e => {
+            const timeTxt = (e.start && e.finish) ? `${e.start}–${e.finish}` : '—';
+            const breakTxt = e.breakMinutes ? `${e.breakMinutes}m` : '—';
+            const dayTxt = parseDate(e.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+            return `<tr><td>${dayTxt}</td><td class="time-cell">${timeTxt}</td><td class="num-cell">${breakTxt}</td><td class="num-cell">${e.hours.toFixed(2)}h</td></tr>`;
+          }).join('')
+        : `<tr><td colspan="4" class="muted-cell">No entries this week.</td></tr>`;
+      const total = weekTotal(w, map);
+      return `
+        <div class="rpt-week">
+          <div class="rpt-week-head"><span>${fmtShort(w)} – ${fmtShort(shiftDate(w,6))}</span><span class="rpt-week-total">${total.toFixed(2)}h</span></div>
+          <table class="rpt-table rpt-detail">
+            <colgroup><col class="c-date"><col class="c-time"><col class="c-break"><col class="c-hours"></colgroup>
+            <thead><tr><th>Date</th><th>Time</th><th class="num-cell">Break</th><th class="num-cell">Hours</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }).join('');
+    detailBlock = `
+      <div class="rpt-section">
+        <h3>Entry detail</h3>
+        ${detailSections}
       </div>`;
-  }).join('');
+  }
 
   const generated = new Date().toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' });
+  const titleText = mode === 'detail' ? 'Full Daily Report' : 'Weekly Summary';
 
   document.getElementById('reportContent').innerHTML = `
     <div class="rpt-header">
       <div class="rpt-eyebrow">Fortnight Cap Tracker</div>
-      <h2 class="rpt-title">Hours Report</h2>
+      <h2 class="rpt-title">${titleText}</h2>
       <div class="rpt-range">${fmtShort(fromMonday)} – ${fmtShort(shiftDate(toMonday,6))}</div>
       <div class="rpt-meta">Generated ${generated} · 48h rolling fortnight limit</div>
     </div>
@@ -763,11 +760,29 @@ function buildReport(fromMonday, toMonday) {
       <h3>Running fortnight totals</h3>
       <table class="rpt-table"><thead><tr><th>Fortnight</th><th>Total</th><th>Status</th></tr></thead><tbody>${fortnightRows}</tbody></table>
     </div>
-    <div class="rpt-section">
-      <h3>Entry detail</h3>
-      ${detailSections}
-    </div>
+    ${detailBlock}
   `;
+}
+
+function openReport(mode) {
+  const from = document.getElementById('fromWeekSelect').value;
+  const to = document.getElementById('toWeekSelect').value;
+  if (!from || !to || from > to) {
+    alert('Choose a "from" week that is on or before the "to" week.');
+    return;
+  }
+  buildReport(from, to, mode);
+  document.body.classList.add('report-open');
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('reportOverlay').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function closeReport() {
+  document.body.classList.remove('report-open');
+  document.getElementById('reportOverlay').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+  document.getElementById('reportModeChooser').style.display = 'none';
 }
 
 document.getElementById('generateReportBtn').addEventListener('click', () => {
@@ -777,14 +792,13 @@ document.getElementById('generateReportBtn').addEventListener('click', () => {
     alert('Choose a "from" week that is on or before the "to" week.');
     return;
   }
-  buildReport(from, to);
-  document.getElementById('reportOverlay').style.display = 'flex';
-  document.getElementById('reportOverlay').scrollTop = 0;
+  document.getElementById('reportModeChooser').style.display = 'flex';
 });
 
-document.getElementById('closeReportBtn').addEventListener('click', () => {
-  document.getElementById('reportOverlay').style.display = 'none';
-});
+document.getElementById('modeSummaryBtn').addEventListener('click', () => openReport('summary'));
+document.getElementById('modeDetailBtn').addEventListener('click', () => openReport('detail'));
+
+document.getElementById('closeReportBtn').addEventListener('click', closeReport);
 
 document.getElementById('printReportBtn').addEventListener('click', () => {
   window.print();
