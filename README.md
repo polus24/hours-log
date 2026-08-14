@@ -8,9 +8,8 @@ namespace. No build step, no framework, nothing to `npm install`.
 
 A URL like `hours-log.pages.dev` (or your own domain) that works on any
 phone or PC, with data stored on Cloudflare rather than in the browser.
-Each device is linked by a short **sync code** — generated automatically
-the first time the app is opened, and re-enterable on any other device
-to see the same log.
+Everyone who opens the link automatically sees the same shared log —
+no codes, accounts, or setup needed per device.
 
 ---
 
@@ -71,16 +70,20 @@ since Cloudflare already controls the DNS.
 
 ## 6. Using it
 
-- Open the `pages.dev` URL (or your custom domain) on his phone.
-- The app auto-generates a 6-character sync code the first time it loads
-  (shown at the top). That code is what links his devices together.
-- On his PC, open the same URL, click **use a different code**, type in
-  the same code from his phone, and both devices now read/write the same log.
-- No login, no password — the code is just a shared key. It's fine for a
-  personal tool like this, but anyone who has the code could see the data,
-  so treat it a bit like a PIN (don't post it publicly).
+Just open the `pages.dev` URL (or your custom domain) on any phone or PC —
+his, yours, your wife's. They all read and write the same shared log
+automatically, nothing to enter or copy.
 
-## How the fortnight rule works
+There's no login or access control at all, so anyone with the link can
+see and edit the data. That's a deliberate tradeoff for a simple, personal
+tool — fine as long as the link itself isn't shared publicly.
+
+## Logging hours
+
+Entries are made by entering a start time, finish time, and any unpaid
+break (in minutes) — the app works out the total hours automatically,
+including overnight shifts (finish time earlier than start = next day).
+It shows a live preview of the shift length as you type, before you hit Add.
 
 Weeks are fixed Monday–Sunday. The app tracks weekly totals and checks
 every consecutive pair of weeks (week 1+2, week 2+3, week 3+4, …) against
