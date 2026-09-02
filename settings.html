@@ -92,6 +92,30 @@
   .save-status { text-align: center; font-size: 12.5px; margin-top: 10px; min-height: 16px; color: var(--tally-green); }
   .save-status.error { color: var(--rule-red); }
 
+  .rate-type-heading {
+    font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 15px;
+    margin: 0 0 12px; color: var(--paper);
+  }
+  .rate-history { margin-bottom: 14px; }
+  .rate-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 8px 10px; background: var(--ink-navy-3); border-radius: 8px; margin-bottom: 6px; font-size: 13px;
+  }
+  .rate-row .rr-from { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: rgba(243,238,221,0.5); }
+  .rate-row .rr-rate { font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: var(--amber); }
+  .rate-row .rr-current { color: var(--tally-green); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; margin-left: 6px; }
+  .rate-del-btn { background: none; border: none; color: rgba(243,238,221,0.35); cursor: pointer; font-size: 15px; padding: 2px 6px; }
+  .rate-del-btn:hover { color: var(--rule-red); }
+  .rate-empty { color: rgba(243,238,221,0.35); font-size: 12.5px; font-style: italic; margin-bottom: 14px; }
+  .rate-add-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+  .rate-add-row .field { min-width: 130px; }
+  .rate-add-btn {
+    background: var(--amber); color: var(--ink-navy); border: none; border-radius: 8px;
+    padding: 0 16px; height: 40px; font-weight: 600; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px;
+  }
+  .rate-add-btn:hover { filter: brightness(1.06); }
+  .rate-add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
   /* ---- PIN lock (same pattern as the main app) ---- */
   .pin-overlay {
     position: fixed; inset: 0; z-index: 2000;
@@ -223,27 +247,50 @@
   <header style="margin-top:32px;">
     <div class="eyebrow">Settings</div>
     <h1>PAY RATES</h1>
-    <p class="sub">Used to calculate gross income on the Income page. Rates apply by day type — weekday, Saturday, Sunday, or a shift you've marked as a public holiday when logging it.</p>
+    <p class="sub">Used to calculate gross income on the Income page. Add a new rate whenever it actually changes — a pay rise, a birthday step-up, a new job — and everything logged before that date keeps using the old rate. Nothing here is retroactive.</p>
   </header>
 
-  <form id="ratesForm">
-    <div class="panel">
-      <div class="sem-row">
-        <div class="sem-fields">
-          <div class="field"><label for="rateWeekday">Weekday ($/hr)</label><input type="number" id="rateWeekday" step="0.01" min="0" max="1000" placeholder="0.00"></div>
-          <div class="field"><label for="rateSaturday">Saturday ($/hr)</label><input type="number" id="rateSaturday" step="0.01" min="0" max="1000" placeholder="0.00"></div>
-        </div>
-      </div>
-      <div class="sem-row">
-        <div class="sem-fields">
-          <div class="field"><label for="rateSunday">Sunday ($/hr)</label><input type="number" id="rateSunday" step="0.01" min="0" max="1000" placeholder="0.00"></div>
-          <div class="field"><label for="ratePublicHoliday">Public holiday ($/hr)</label><input type="number" id="ratePublicHoliday" step="0.01" min="0" max="1000" placeholder="0.00"></div>
-        </div>
-      </div>
+  <div id="ratesErrorBanner"></div>
+
+  <div class="panel" data-daytype="weekday">
+    <h2 class="rate-type-heading">Weekday</h2>
+    <div class="rate-history" id="history-weekday"></div>
+    <div class="rate-add-row">
+      <div class="field"><label>Effective from</label><input type="date" class="rate-from-input"></div>
+      <div class="field"><label>Rate ($/hr)</label><input type="number" class="rate-value-input" step="0.01" min="0" max="1000" placeholder="0.00"></div>
+      <button type="button" class="rate-add-btn">Add</button>
     </div>
-    <button type="submit" class="save-btn" id="saveRatesBtn">Save pay rates</button>
-    <div class="save-status" id="saveRatesStatus"></div>
-  </form>
+  </div>
+
+  <div class="panel" data-daytype="saturday">
+    <h2 class="rate-type-heading">Saturday</h2>
+    <div class="rate-history" id="history-saturday"></div>
+    <div class="rate-add-row">
+      <div class="field"><label>Effective from</label><input type="date" class="rate-from-input"></div>
+      <div class="field"><label>Rate ($/hr)</label><input type="number" class="rate-value-input" step="0.01" min="0" max="1000" placeholder="0.00"></div>
+      <button type="button" class="rate-add-btn">Add</button>
+    </div>
+  </div>
+
+  <div class="panel" data-daytype="sunday">
+    <h2 class="rate-type-heading">Sunday</h2>
+    <div class="rate-history" id="history-sunday"></div>
+    <div class="rate-add-row">
+      <div class="field"><label>Effective from</label><input type="date" class="rate-from-input"></div>
+      <div class="field"><label>Rate ($/hr)</label><input type="number" class="rate-value-input" step="0.01" min="0" max="1000" placeholder="0.00"></div>
+      <button type="button" class="rate-add-btn">Add</button>
+    </div>
+  </div>
+
+  <div class="panel" data-daytype="publicHoliday">
+    <h2 class="rate-type-heading">Public holiday</h2>
+    <div class="rate-history" id="history-publicHoliday"></div>
+    <div class="rate-add-row">
+      <div class="field"><label>Effective from</label><input type="date" class="rate-from-input"></div>
+      <div class="field"><label>Rate ($/hr)</label><input type="number" class="rate-value-input" step="0.01" min="0" max="1000" placeholder="0.00"></div>
+      <button type="button" class="rate-add-btn">Add</button>
+    </div>
+  </div>
 
 </div>
 </div>
@@ -360,56 +407,125 @@ document.getElementById('semesterForm').addEventListener('submit', async (ev) =>
   }
 });
 
-// ---- pay rates ----
+// ---- pay rates (dated history per day-type) ----
 const RATES_API = '/api/rates';
-const RATE_FIELDS = { weekday: 'rateWeekday', saturday: 'rateSaturday', sunday: 'rateSunday', publicHoliday: 'ratePublicHoliday' };
+const DAY_TYPES = ['weekday', 'saturday', 'sunday', 'publicHoliday'];
+let rateHistory = { weekday: [], saturday: [], sunday: [], publicHoliday: [] };
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function fmtRateDate(s) {
+  return new Date(s + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function showRatesError(msg) {
+  document.getElementById('ratesErrorBanner').innerHTML = msg
+    ? `<div style="background:rgba(193,68,58,0.12);border:1px solid var(--rule-red-dim);color:#f3d4d0;border-radius:10px;padding:10px 14px;font-size:12.5px;margin-bottom:18px;">${msg}</div>`
+    : '';
+}
+
+function renderRateHistory(dayType) {
+  const container = document.getElementById(`history-${dayType}`);
+  const arr = [...(rateHistory[dayType] || [])].sort((a, b) => b.from.localeCompare(a.from)); // newest first
+  if (arr.length === 0) {
+    container.innerHTML = '<div class="rate-empty">No rate set yet for this day type.</div>';
+    return;
+  }
+  container.innerHTML = arr.map((h, i) => `
+    <div class="rate-row">
+      <span><span class="rr-from">from ${fmtRateDate(h.from)}</span>${i === 0 ? '<span class="rr-current">current</span>' : ''}</span>
+      <span>
+        <span class="rr-rate">$${h.rate.toFixed(2)}/hr</span>
+        <button class="rate-del-btn" data-daytype="${dayType}" data-from="${h.from}" aria-label="Delete this rate">✕</button>
+      </span>
+    </div>
+  `).join('');
+}
+
+function renderAllRateHistories() {
+  DAY_TYPES.forEach(renderRateHistory);
+}
 
 async function loadRates() {
   try {
     const res = await fetch(`${RATES_API}?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`);
     if (res.status === 401) { handleUnauthorized(); return; }
     if (!res.ok) throw new Error('bad response');
-    const data = await res.json();
-    for (const [field, inputId] of Object.entries(RATE_FIELDS)) {
-      document.getElementById(inputId).value = data[field] || '';
-    }
+    rateHistory = await res.json();
+    showRatesError('');
+    renderAllRateHistories();
   } catch (e) {
-    // leave fields blank — user can still re-enter and save
+    showRatesError('Could not load pay rates — check your connection.');
   }
 }
 
-document.getElementById('ratesForm').addEventListener('submit', async (ev) => {
-  ev.preventDefault();
-  const rates = {};
-  for (const [field, inputId] of Object.entries(RATE_FIELDS)) {
-    rates[field] = Number(document.getElementById(inputId).value) || 0;
-  }
+document.querySelectorAll('.rate-add-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const panel = btn.closest('.panel');
+    const dayType = panel.dataset.daytype;
+    const fromInput = panel.querySelector('.rate-from-input');
+    const rateInput = panel.querySelector('.rate-value-input');
+    const from = fromInput.value;
+    const rate = Number(rateInput.value);
 
-  const btn = document.getElementById('saveRatesBtn');
-  const status = document.getElementById('saveRatesStatus');
-  btn.disabled = true;
-  status.classList.remove('error');
-  status.textContent = 'Saving…';
-  try {
-    const res = await fetch(RATES_API, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ user: syncCode, pin, rates })
-    });
-    if (res.status === 401) { handleUnauthorized(); return; }
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'save failed');
+    if (!from) { fromInput.focus(); return; }
+    if (!Number.isFinite(rate) || rate < 0) { rateInput.focus(); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+    try {
+      const res = await fetch(RATES_API, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ user: syncCode, pin, dayType, from, rate })
+      });
+      if (res.status === 401) { handleUnauthorized(); return; }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'save failed');
+      }
+      const data = await res.json();
+      rateHistory = data.history;
+      renderRateHistory(dayType);
+      showRatesError('');
+      rateInput.value = '';
+    } catch (e) {
+      showRatesError(e.message && e.message !== 'save failed' ? e.message : 'Could not save — check your connection and try again.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Add';
     }
-    status.textContent = 'Saved.';
-    status.classList.remove('error');
-  } catch (e) {
-    status.textContent = e.message && e.message !== 'save failed' ? e.message : 'Could not save — check your connection and try again.';
-    status.classList.add('error');
-  } finally {
-    btn.disabled = false;
-  }
+  });
 });
+
+document.querySelectorAll('.rate-history').forEach(container => {
+  container.addEventListener('click', async (ev) => {
+    const delBtn = ev.target.closest('.rate-del-btn');
+    if (!delBtn) return;
+    const dayType = delBtn.dataset.daytype;
+    const from = delBtn.dataset.from;
+    try {
+      const res = await fetch(RATES_API, {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ user: syncCode, pin, dayType, from })
+      });
+      if (res.status === 401) { handleUnauthorized(); return; }
+      if (!res.ok) throw new Error('delete failed');
+      const data = await res.json();
+      rateHistory = data.history;
+      renderRateHistory(dayType);
+      showRatesError('');
+    } catch (e) {
+      showRatesError('Could not delete that rate — check your connection and try again.');
+    }
+  });
+});
+
+// default the "effective from" date inputs to today, for the common
+// case of updating a rate on the day it actually changes
+document.querySelectorAll('.rate-from-input').forEach(input => { input.value = todayStr(); });
 
 // ---- boot ----
 pin = localStorage.getItem(PIN_KEY);
