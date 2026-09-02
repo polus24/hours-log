@@ -1,7 +1,12 @@
 // Cloudflare Pages Function
-// Handles GET / POST at /api/rates
-// Stores the four editable hourly pay rates (weekday/Saturday/Sunday/
-// public holiday) in the same HOURS_KV namespace, under "rates:<user>".
+// Handles GET / POST / DELETE at /api/rates
+//
+// Stores a dated HISTORY of hourly rates per day-type, not just one
+// current number — so a rate change (birthday pay bump, pay rise, new
+// job) never retroactively changes gross pay already calculated for
+// past shifts. Each entry is { from: "YYYY-MM-DD", rate: number },
+// meaning "this rate applies from this date until superseded by a
+// later one". Stored under "rates:<user>" in HOURS_KV.
 
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
@@ -21,10 +26,34 @@ function pinOk(env, providedPin) {
   return String(providedPin || "") === String(expected);
 }
 
-const FIELDS = ["weekday", "saturday", "sunday", "publicHoliday"];
+const DAY_TYPES = ["weekday", "saturday", "sunday", "publicHoliday"];
 
+function isValidDate(s) {
+  return typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
 function isValidRate(v) {
   return typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1000;
+}
+
+async function loadHistory(env, user) {
+  const raw = await env.HOURS_KV.get(keyFor(user));
+  const data = raw ? JSON.parse(raw) : {};
+  const result = {};
+  for (const dt of DAY_TYPES) {
+    let arr = data[dt];
+    // Back-compat: an older deploy may have stored one flat number per
+    // day-type instead of a history array — treat that as a single
+    // entry that's always been in effect, rather than losing it.
+    if (typeof arr === "number") {
+      arr = [{ from: "2000-01-01", rate: arr }];
+    }
+    if (!Array.isArray(arr)) arr = [];
+    result[dt] = arr
+      .filter(h => h && isValidDate(h.from) && isValidRate(Number(h.rate)))
+      .map(h => ({ from: h.from, rate: Number(h.rate) }))
+      .sort((a, b) => a.from.localeCompare(b.from));
+  }
+  return result;
 }
 
 export async function onRequestGet(context) {
@@ -35,9 +64,7 @@ export async function onRequestGet(context) {
   if (!user) return json({ error: "missing user" }, 400);
   if (!pinOk(env, providedPin)) return json({ error: "unauthorized" }, 401);
 
-  const raw = await env.HOURS_KV.get(keyFor(user));
-  const defaults = { weekday: 0, saturday: 0, sunday: 0, publicHoliday: 0 };
-  return json(raw ? { ...defaults, ...JSON.parse(raw) } : defaults);
+  return json(await loadHistory(env, user));
 }
 
 export async function onRequestPost(context) {
@@ -50,21 +77,45 @@ export async function onRequestPost(context) {
   }
 
   const user = body.user;
-  const rates = body.rates;
+  const dayType = body.dayType;
+  const from = body.from;
+  const rate = Number(body.rate);
   if (!pinOk(env, body.pin)) return json({ error: "unauthorized" }, 401);
-  if (!user || !rates || typeof rates !== "object") {
+  if (!user || !DAY_TYPES.includes(dayType)) return json({ error: "invalid day type" }, 400);
+  if (!isValidDate(from)) return json({ error: "enter a valid effective date" }, 400);
+  if (!isValidRate(rate)) return json({ error: "rate must be between 0 and 1000" }, 400);
+
+  const history = await loadHistory(env, user);
+  const arr = history[dayType];
+  const idx = arr.findIndex(h => h.from === from);
+  if (idx >= 0) arr[idx] = { from, rate }; // same date entered twice — correct it, don't duplicate
+  else arr.push({ from, rate });
+  arr.sort((a, b) => a.from.localeCompare(b.from));
+
+  await env.HOURS_KV.put(keyFor(user), JSON.stringify(history));
+  return json({ ok: true, history });
+}
+
+export async function onRequestDelete(context) {
+  const { request, env } = context;
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "invalid json" }, 400);
+  }
+
+  const user = body.user;
+  const dayType = body.dayType;
+  const from = body.from;
+  if (!pinOk(env, body.pin)) return json({ error: "unauthorized" }, 401);
+  if (!user || !DAY_TYPES.includes(dayType) || !isValidDate(from)) {
     return json({ error: "invalid" }, 400);
   }
 
-  const clean = {};
-  for (const field of FIELDS) {
-    const v = Number(rates[field]);
-    if (!isValidRate(v)) {
-      return json({ error: `${field}: enter a rate between 0 and 1000` }, 400);
-    }
-    clean[field] = v;
-  }
+  const history = await loadHistory(env, user);
+  history[dayType] = history[dayType].filter(h => h.from !== from);
 
-  await env.HOURS_KV.put(keyFor(user), JSON.stringify(clean));
-  return json({ ok: true });
+  await env.HOURS_KV.put(keyFor(user), JSON.stringify(history));
+  return json({ ok: true, history });
 }
