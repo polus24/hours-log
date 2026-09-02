@@ -155,6 +155,18 @@
   .entry-row .row-right { display: flex; align-items: center; }
   .del-btn { background: none; border: none; color: rgba(243,238,221,0.4); cursor: pointer; font-size: 16px; line-height: 1; padding: 4px 6px; }
   .del-btn:hover { color: var(--rule-red); }
+  .edit-btn { background: none; border: none; color: rgba(243,238,221,0.4); cursor: pointer; font-size: 14px; line-height: 1; padding: 4px 6px; }
+  .edit-btn:hover { color: var(--amber); }
+  .edit-mode-banner {
+    background: rgba(217,164,74,0.1); border: 1px solid rgba(217,164,74,0.3); border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 14px; font-size: 12.5px; color: rgba(243,238,221,0.75);
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  }
+  .edit-mode-banner button {
+    background: none; border: 1px solid rgba(243,238,221,0.25); color: var(--paper); border-radius: 6px;
+    padding: 4px 10px; font-size: 11.5px; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .edit-mode-banner button:hover { border-color: var(--amber); color: var(--amber); }
   .empty-note { color: rgba(243,238,221,0.4); font-size: 13px; text-align: center; padding: 18px 0; }
 
   footer { text-align: center; margin-top: 22px; font-size: 11px; color: rgba(243,238,221,0.3); }
@@ -337,6 +349,10 @@
 
   <div class="panel">
     <h2>Log hours</h2>
+    <div class="edit-mode-banner" id="editModeBanner" style="display:none;">
+      Editing the entry from <span id="editModeDate"></span>.
+      <button type="button" id="cancelEditBtn">Cancel</button>
+    </div>
     <form class="entry-form" id="entryForm">
       <div class="field">
         <label for="dateInput">Date</label>
@@ -418,6 +434,7 @@ const syncCode = 'household-hours-log';
 const PIN_KEY = 'htk_pin';
 let entries = [];
 let pin = null;
+let editingId = null; // set while the form is editing an existing entry instead of creating a new one
 
 function todayStr() {
   const d = new Date();
@@ -650,6 +667,7 @@ function render() {
         </span>
         <div class="row-right">
           <span class="hrs">${hrsLabel}</span>
+          <button class="edit-btn" data-id="${e.id}" aria-label="Edit entry">✎</button>
           <button class="del-btn" data-id="${e.id}" aria-label="Delete entry">✕</button>
         </div>
       </div>
@@ -716,6 +734,47 @@ async function addEntry(date, start, finish, breakMinutes, hours, isPublicHolida
   }
 }
 
+async function updateEntry(id, date, start, finish, breakMinutes, hours, isPublicHoliday) {
+  try {
+    const res = await fetch(API, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ user: syncCode, pin, id, date, start, finish, breakMinutes, hours, isPublicHoliday })
+    });
+    if (res.status === 401) { handleUnauthorized(); return; }
+    if (!res.ok) throw new Error('bad response');
+    await loadEntries();
+  } catch (e) {
+    showError('Could not save that change — check your connection and try again.');
+  }
+}
+
+function startEdit(entry) {
+  editingId = entry.id;
+  document.getElementById('dateInput').value = entry.date;
+  document.getElementById('startInput').value = entry.start || '';
+  document.getElementById('finishInput').value = entry.finish || '';
+  document.getElementById('breakInput').value = entry.breakMinutes || 0;
+  document.getElementById('phInput').checked = !!entry.isPublicHoliday;
+  updateComputedPreview();
+
+  document.getElementById('editModeBanner').style.display = 'flex';
+  document.getElementById('editModeDate').textContent = fmtShort(entry.date);
+  document.getElementById('addBtn').textContent = 'Update entry';
+
+  document.getElementById('entryForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelEdit() {
+  editingId = null;
+  document.getElementById('entryForm').reset();
+  document.getElementById('dateInput').value = todayStr();
+  document.getElementById('breakInput').value = '0';
+  document.getElementById('editModeBanner').style.display = 'none';
+  document.getElementById('addBtn').textContent = 'Add';
+  updateComputedPreview();
+}
+
 async function deleteEntry(id) {
   try {
     const res = await fetch(API, {
@@ -765,8 +824,17 @@ document.getElementById('entryForm').addEventListener('submit', async (ev) => {
   const isPublicHoliday = document.getElementById('phInput').checked;
   const hours = computeHours(start, finish, breakMinutes);
   if (!date || hours === null || hours <= 0 || hours > 24) return;
+
   document.getElementById('addBtn').disabled = true;
-  await addEntry(date, start, finish, breakMinutes, hours, isPublicHoliday);
+  if (editingId) {
+    await updateEntry(editingId, date, start, finish, breakMinutes, hours, isPublicHoliday);
+    editingId = null;
+    document.getElementById('editModeBanner').style.display = 'none';
+    document.getElementById('addBtn').textContent = 'Add';
+    document.getElementById('dateInput').value = todayStr();
+  } else {
+    await addEntry(date, start, finish, breakMinutes, hours, isPublicHoliday);
+  }
   document.getElementById('addBtn').disabled = false;
   document.getElementById('startInput').value = '';
   document.getElementById('finishInput').value = '';
@@ -775,9 +843,18 @@ document.getElementById('entryForm').addEventListener('submit', async (ev) => {
   updateComputedPreview();
 });
 
+document.getElementById('cancelEditBtn').addEventListener('click', cancelEdit);
+
 document.getElementById('historyList').addEventListener('click', async (ev) => {
+  const editBtn = ev.target.closest('.edit-btn');
+  if (editBtn) {
+    const entry = entries.find(e => e.id === editBtn.dataset.id);
+    if (entry) startEdit(entry);
+    return;
+  }
   const btn = ev.target.closest('.del-btn');
   if (!btn) return;
+  if (editingId === btn.dataset.id) cancelEdit(); // deleting the entry currently being edited
   await deleteEntry(btn.dataset.id);
 });
 
