@@ -397,24 +397,45 @@ function handleUnauthorized() {
 
 async function loadAll() {
   if (!pin) { showPinLock(); return; }
+
+  let anyUnauthorized = false;
+  const problems = [];
+
   try {
-    const [entRes, rateRes, netRes] = await Promise.all([
-      fetch(`${ENTRIES_API}?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`),
-      fetch(`${RATES_API}?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`),
-      fetch(`${NETPAY_API}?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`)
-    ]);
-    if (entRes.status === 401 || rateRes.status === 401 || netRes.status === 401) { handleUnauthorized(); return; }
-    if (!entRes.ok || !rateRes.ok || !netRes.ok) throw new Error('bad response');
-    entries = await entRes.json();
-    rates = await rateRes.json();
-    netPayByWeek = await netRes.json();
-    localStorage.setItem(PIN_KEY, pin);
-    unlockApp();
+    const res = await fetch(`${ENTRIES_API}?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`);
+    if (res.status === 401) anyUnauthorized = true;
+    else if (res.ok) entries = await res.json();
+    else problems.push(`entries (HTTP ${res.status})`);
+  } catch (e) { problems.push('entries (network error)'); }
+
+  try {
+    const res = await fetch(`${RATES_API}?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`);
+    if (res.status === 401) anyUnauthorized = true;
+    else if (res.ok) rates = await res.json();
+    else problems.push(`pay rates (HTTP ${res.status})`);
+  } catch (e) { problems.push('pay rates (network error)'); }
+
+  try {
+    const res = await fetch(`${NETPAY_API}?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`);
+    if (res.status === 401) anyUnauthorized = true;
+    else if (res.ok) netPayByWeek = await res.json();
+    else problems.push(`net pay (HTTP ${res.status})`);
+  } catch (e) { problems.push('net pay (network error)'); }
+
+  // Only the PIN screen itself is gated on a genuine 401 — anything else
+  // (a missing/undeployed endpoint, a network hiccup) shouldn't trap
+  // someone with a correct PIN behind the lock screen forever.
+  if (anyUnauthorized) { handleUnauthorized(); return; }
+
+  localStorage.setItem(PIN_KEY, pin);
+  unlockApp();
+
+  if (problems.length > 0) {
+    showError(`Some income data couldn't load: ${problems.join(', ')}. If this persists, check that functions/api/rates.js and functions/api/netpay.js are deployed to your repo.`);
+  } else {
     showError('');
-    render();
-  } catch (e) {
-    showError('Could not load income data — check your connection.');
   }
+  render();
 }
 
 document.getElementById('pinForm').addEventListener('submit', async (ev) => {
