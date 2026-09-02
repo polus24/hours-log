@@ -112,6 +112,20 @@ reads and writes the same shared log automatically.
 The PIN is enforced by the server, not just hidden in the page — so even
 someone poking directly at the API without the PIN gets rejected.
 
+## Navigation
+
+Three pages, all cross-linked:
+
+- **`/`** — the main hours log and 48h cap dashboard.
+- **`/settings.html`** — semester dates (which weeks the cap applies to)
+  and pay rates. Reached via the **⚙ Settings** button at the top of the
+  main page.
+- **`/income.html`** — gross vs. net pay by period. Reached via the
+  **$ Income** button at the top of the main page.
+
+All three share the same PIN — unlocking one doesn't separately unlock
+the others per device, but the PIN itself is the same everywhere.
+
 ## Logging hours
 
 Entries are made by entering a start time, finish time, and any unpaid
