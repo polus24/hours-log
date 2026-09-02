@@ -231,7 +231,7 @@ const syncCode = 'household-hours-log';
 const PIN_KEY = 'htk_pin';
 let pin = null;
 let entries = [];
-let rates = { weekday: 0, saturday: 0, sunday: 0, publicHoliday: 0 };
+let rates = { weekday: [], saturday: [], sunday: [], publicHoliday: [] }; // dated history per day-type
 let netPayByWeek = {};
 let currentPeriod = 'fortnight';
 
@@ -252,12 +252,26 @@ function mondayOf(dateStr) {
 }
 function fmtMoney(n) { return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 
+// Finds whichever rate was actually in effect on a given date — never
+// the current rate. History is sorted ascending by 'from'; we want the
+// latest entry whose 'from' is on-or-before the shift's date, so a
+// later rate change never reaches backward into past shifts.
+function findRateAsOf(history, dateStr) {
+  let applicable = null;
+  for (const h of history) {
+    if (h.from <= dateStr) applicable = h;
+    else break;
+  }
+  if (applicable) return applicable.rate;
+  // The shift predates every saved rate entry — fall back to the
+  // earliest known rate as a best-effort estimate rather than $0.
+  return history.length > 0 ? history[0].rate : 0;
+}
+
 function rateForEntry(e) {
-  if (e.isPublicHoliday) return rates.publicHoliday;
   const dow = parseDate(e.date).getDay(); // 0 = Sun, 6 = Sat
-  if (dow === 6) return rates.saturday;
-  if (dow === 0) return rates.sunday;
-  return rates.weekday;
+  const dayType = e.isPublicHoliday ? 'publicHoliday' : (dow === 6 ? 'saturday' : dow === 0 ? 'sunday' : 'weekday');
+  return findRateAsOf(rates[dayType] || [], e.date);
 }
 function grossForEntry(e) {
   return rateForEntry(e) * e.hours; // worked hours — break already excluded
