@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Fortnight — Income</title>
+
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#101b26">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fortnight">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink-navy: #101b26;
+    --ink-navy-2: #17293b;
+    --ink-navy-3: #1f3348;
+    --paper: #f3eedd;
+    --paper-dim: #e4dcc3;
+    --rule-red: #c1443a;
+    --rule-red-dim: #8f342c;
+    --tally-green: #5b9279;
+    --amber: #d9a44a;
+    --ink-text: #1b2a3d;
+    --paper-text-dim: #6b6250;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(ellipse at top, var(--ink-navy-2), var(--ink-navy) 65%);
+    color: var(--paper);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: calc(28px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  }
+  .wrap { max-width: 680px; margin: 0 auto; }
+
+  .back-link {
+    display: inline-block; margin-bottom: 18px; color: rgba(243,238,221,0.5);
+    font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; text-decoration: none;
+  }
+  .back-link:hover { color: var(--amber); }
+
+  header { text-align: center; margin-bottom: 20px; }
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.28em; color: var(--amber);
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  h1 { font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 26px; letter-spacing: 0.03em; margin: 0 0 6px; }
+  .sub { color: rgba(243,238,221,0.55); font-size: 13.5px; max-width: 480px; margin: 0 auto; line-height: 1.55; }
+
+  .panel {
+    background: var(--ink-navy-2); border: 1px solid rgba(243,238,221,0.08); border-radius: 14px;
+    padding: 18px; margin-bottom: 16px;
+  }
+  .panel h2 { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(243,238,221,0.5); margin: 0 0 12px; }
+
+  /* ---- period selector ---- */
+  .period-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .period-btn {
+    background: var(--ink-navy-3); border: 1px solid rgba(243,238,221,0.12); color: rgba(243,238,221,0.7);
+    border-radius: 999px; padding: 7px 14px; font-size: 12.5px; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .period-btn.active { background: var(--amber); border-color: var(--amber); color: var(--ink-navy); font-weight: 600; }
+  .custom-row { display: none; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .custom-row.show { display: flex; }
+  .field { flex: 1; min-width: 140px; }
+  .field label {
+    display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: rgba(243,238,221,0.45); margin-bottom: 5px;
+  }
+  input[type="date"], input[type="number"] {
+    width: 100%; background: var(--ink-navy); border: 1px solid rgba(243,238,221,0.15); color: var(--paper);
+    border-radius: 8px; padding: 10px; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.9); }
+  input:focus { outline: 2px solid var(--amber); outline-offset: 1px; }
+
+  /* ---- summary card ---- */
+  .summary-card {
+    background: var(--paper); color: var(--ink-text); border-radius: 14px;
+    padding: 24px 22px; margin-bottom: 16px; display: flex; gap: 18px; flex-wrap: wrap;
+  }
+  .summary-block { flex: 1; min-width: 140px; text-align: center; }
+  .summary-block .s-label { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--paper-text-dim); margin-bottom: 6px; }
+  .summary-block .s-num { font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 32px; }
+  .summary-block.gross .s-num { color: var(--ink-text); }
+  .summary-block.net .s-num { color: var(--tally-green); }
+  .summary-block .s-sub { font-size: 11px; color: var(--paper-text-dim); margin-top: 4px; }
+  .summary-divider { width: 1px; background: var(--paper-dim); align-self: stretch; }
+
+  .range-label { text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: rgba(243,238,221,0.5); margin-bottom: 16px; }
+
+  /* ---- weekly breakdown table ---- */
+  .wk-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .wk-table th {
+    text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: rgba(243,238,221,0.45); border-bottom: 1px solid rgba(243,238,221,0.12); padding: 6px 8px;
+  }
+  .wk-table td { padding: 8px; border-bottom: 1px solid rgba(243,238,221,0.06); vertical-align: middle; }
+  .wk-table .num-cell { text-align: right; font-family: 'IBM Plex Mono', monospace; }
+  .wk-table .net-cell input {
+    width: 100px; padding: 6px 8px; font-size: 13px; text-align: right;
+  }
+  .wk-table .net-save {
+    background: none; border: 1px solid rgba(243,238,221,0.2); color: rgba(243,238,221,0.6);
+    border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer; margin-left: 6px;
+  }
+  .wk-table .net-save:hover { border-color: var(--amber); color: var(--amber); }
+  .wk-table .net-save.saved { border-color: var(--tally-green); color: var(--tally-green); }
+  .empty-note { color: rgba(243,238,221,0.4); font-size: 13px; text-align: center; padding: 18px 0; }
+
+  .note {
+    background: rgba(217,164,74,0.08); border: 1px solid rgba(217,164,74,0.25); border-radius: 10px;
+    padding: 12px 14px; font-size: 12px; color: rgba(243,238,221,0.65); line-height: 1.5; margin-bottom: 16px;
+  }
+  .error-note { background: rgba(193,68,58,0.12); border: 1px solid var(--rule-red-dim); color: #f3d4d0; border-radius: 10px; padding: 10px 14px; font-size: 12.5px; margin-bottom: 18px; }
+
+  /* ---- PIN lock (same pattern as the main app) ---- */
+  .pin-overlay {
+    position: fixed; inset: 0; z-index: 2000;
+    background: radial-gradient(ellipse at top, var(--ink-navy-2), var(--ink-navy) 65%);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .pin-card {
+    background: var(--paper); color: var(--ink-text); border-radius: 14px; padding: 28px 24px;
+    max-width: 320px; width: 100%; text-align: center; box-shadow: 0 18px 40px -18px rgba(0,0,0,0.6);
+  }
+  .pin-card h1 { font-size: 22px; margin: 0 0 8px; }
+  .pin-card .sub { color: var(--paper-text-dim); margin-bottom: 18px; }
+  .pin-card input {
+    width: 100%; text-align: center; letter-spacing: 0.4em; font-size: 20px; font-family: 'IBM Plex Mono', monospace;
+    background: #fff; border: 1px solid rgba(27,42,61,0.2); color: var(--ink-text); border-radius: 8px; padding: 12px 10px;
+  }
+  .pin-card button {
+    width: 100%; margin-top: 12px; background: var(--amber); color: var(--ink-navy); border: none;
+    border-radius: 8px; height: 40px; font-weight: 600; cursor: pointer;
+  }
+  .pin-error { color: var(--rule-red); font-size: 12.5px; margin-top: 10px; min-height: 16px; }
+</style>
+</head>
+<body>
+
+<div id="pinOverlay" class="pin-overlay">
+  <div class="pin-card">
+    <div class="eyebrow">Private log</div>
+    <h1>Enter PIN</h1>
+    <p class="sub">Enter the shared PIN to view income.</p>
+    <form id="pinForm">
+      <input type="password" inputmode="numeric" id="pinInput" placeholder="••••" maxlength="12" autocomplete="off" required>
+      <button type="submit">Unlock</button>
+    </form>
+    <div class="pin-error" id="pinError"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+<div class="wrap">
+
+  <a href="/" class="back-link">← Back to Fortnight</a>
+
+  <header>
+    <div class="eyebrow">Income</div>
+    <h1>GROSS &amp; NET PAY</h1>
+    <p class="sub">Gross is calculated automatically from logged hours and your pay rates. Net is whatever you actually enter for each week, for comparison.</p>
+  </header>
+
+  <div id="errorBanner"></div>
+
+  <div class="panel">
+    <h2>Period</h2>
+    <div class="period-row" id="periodRow">
+      <button class="period-btn" data-period="today">Today</button>
+      <button class="period-btn" data-period="week">This week</button>
+      <button class="period-btn" data-period="fortnight">This fortnight</button>
+      <button class="period-btn" data-period="month">This month</button>
+      <button class="period-btn" data-period="fy">This financial year</button>
+      <button class="period-btn" data-period="custom">Custom</button>
+    </div>
+    <div class="custom-row" id="customRow">
+      <div class="field"><label for="customFrom">From</label><input type="date" id="customFrom"></div>
+      <div class="field"><label for="customTo">To</label><input type="date" id="customTo"></div>
+    </div>
+  </div>
+
+  <div class="range-label" id="rangeLabel"></div>
+
+  <div class="summary-card">
+    <div class="summary-block gross">
+      <div class="s-label">Gross income</div>
+      <div class="s-num" id="grossNum">$0.00</div>
+      <div class="s-sub">calculated from hours × rate</div>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-block net">
+      <div class="s-label">Net pay</div>
+      <div class="s-num" id="netNum">$0.00</div>
+      <div class="s-sub" id="netSub">entered below, per week</div>
+    </div>
+  </div>
+
+  <div class="note" id="netNote" style="display:none;">
+    Net pay is only counted for weeks fully inside the selected period — a week that starts before or ends after the range isn't included, to avoid double-counting when ranges overlap.
+  </div>
+
+  <div class="panel">
+    <h2>Weekly breakdown</h2>
+    <div id="weeklyTableWrap"></div>
+  </div>
+
+  <p class="sub" style="margin-top:8px;">
+    Rates and public holiday flags are set on <a href="/settings.html" style="color:var(--amber);">the Settings page</a>.
+  </p>
+
+</div>
+</div>
+
+<script>
+const ENTRIES_API = '/api/entries';
+const RATES_API = '/api/rates';
+const NETPAY_API = '/api/netpay';
+const syncCode = 'household-hours-log';
+const PIN_KEY = 'htk_pin';
+let pin = null;
+let entries = [];
+let rates = { weekday: 0, saturday: 0, sunday: 0, publicHoliday: 0 };
+let netPayByWeek = {};
+let currentPeriod = 'fortnight';
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function parseDate(s) { return new Date(s + 'T00:00:00'); }
+function toStr(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function shiftDate(dateStr, delta) { const d = parseDate(dateStr); d.setDate(d.getDate() + delta); return toStr(d); }
+function fmtShort(s) { return parseDate(s).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }); }
+function mondayOf(dateStr) {
+  const d = parseDate(dateStr);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1 - day);
+  d.setDate(d.getDate() + diff);
+  return toStr(d);
+}
+function fmtMoney(n) { return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+function rateForEntry(e) {
+  if (e.isPublicHoliday) return rates.publicHoliday;
+  const dow = parseDate(e.date).getDay(); // 0 = Sun, 6 = Sat
+  if (dow === 6) return rates.saturday;
+  if (dow === 0) return rates.sunday;
+  return rates.weekday;
+}
+function grossForEntry(e) {
+  return rateForEntry(e) * e.hours; // worked hours — break already excluded
+}
+
+// ---- period range calculation ----
+function financialYearRange(todayS) {
+  const d = parseDate(todayS);
+  const y = d.getFullYear();
+  const fyStartYear = (d.getMonth() + 1) >= 7 ? y : y - 1; // July=month 7
+  return { from: `${fyStartYear}-07-01`, to: `${fyStartYear + 1}-06-30` };
+}
+function monthRange(todayS) {
+  const d = parseDate(todayS);
+  const y = d.getFullYear(), m = d.getMonth();
+  const from = `${y}-${String(m+1).padStart(2,'0')}-01`;
+  const lastDay = new Date(y, m+1, 0).getDate();
+  const to = `${y}-${String(m+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  return { from, to };
+}
+function getPeriodRange(period) {
+  const today = todayStr();
+  const curMonday = mondayOf(today);
+  if (period === 'today') return { from: today, to: today };
+  if (period === 'week') return { from: curMonday, to: shiftDate(curMonday, 6) };
+  if (period === 'fortnight') return { from: shiftDate(curMonday, -7), to: shiftDate(curMonday, 6) };
+  if (period === 'month') return monthRange(today);
+  if (period === 'fy') return financialYearRange(today);
+  if (period === 'custom') {
+    const from = document.getElementById('customFrom').value;
+    const to = document.getElementById('customTo').value;
+    return (from && to && from <= to) ? { from, to } : null;
+  }
+  return null;
+}
+
+// Weeks (Mondays) FULLY contained within [from, to] — used for the net-pay
+// table and total, so a week isn't half-counted when a period boundary
+// slices through the middle of it.
+function fullWeeksInRange(from, to) {
+  const weeks = [];
+  let cursor = mondayOf(from);
+  if (cursor < from) cursor = shiftDate(cursor, 7); // first week fully inside
+  while (shiftDate(cursor, 6) <= to) {
+    weeks.push(cursor);
+    cursor = shiftDate(cursor, 7);
+  }
+  return weeks;
+}
+
+function computeGross(from, to) {
+  return entries
+    .filter(e => e.date >= from && e.date <= to)
+    .reduce((sum, e) => sum + grossForEntry(e), 0);
+}
+
+function render() {
+  const range = getPeriodRange(currentPeriod);
+  const wrap = document.getElementById('weeklyTableWrap');
+  const netNote = document.getElementById('netNote');
+
+  if (!range) {
+    document.getElementById('rangeLabel').textContent = 'Pick a valid custom range.';
+    document.getElementById('grossNum').textContent = fmtMoney(0);
+    document.getElementById('netNum').textContent = fmtMoney(0);
+    wrap.innerHTML = '<div class="empty-note">No valid period selected.</div>';
+    netNote.style.display = 'none';
+    return;
+  }
+
+  const { from, to } = range;
+  document.getElementById('rangeLabel').textContent = from === to ? fmtShort(from) : `${fmtShort(from)} – ${fmtShort(to)}`;
+
+  const gross = computeGross(from, to);
+  document.getElementById('grossNum').textContent = fmtMoney(gross);
+
+  const weeks = fullWeeksInRange(from, to);
+  netNote.style.display = (currentPeriod === 'today') ? 'none' : 'block';
+
+  let netTotal = 0;
+  for (const w of weeks) netTotal += (netPayByWeek[w] || 0);
+  document.getElementById('netNum').textContent = fmtMoney(netTotal);
+  document.getElementById('netSub').textContent = weeks.length > 0
+    ? `across ${weeks.length} full week${weeks.length > 1 ? 's' : ''} in range`
+    : 'no full week in this range yet';
+
+  if (weeks.length === 0) {
+    wrap.innerHTML = '<div class="empty-note">No complete Monday–Sunday week falls inside this period yet.</div>';
+    return;
+  }
+
+  wrap.innerHTML = `
+    <table class="wk-table">
+      <thead><tr><th>Week</th><th class="num-cell">Hours worked</th><th class="num-cell">Gross</th><th>Net pay</th></tr></thead>
+      <tbody>
+        ${weeks.map(w => {
+          const weekEntries = entries.filter(e => e.date >= w && e.date <= shiftDate(w, 6));
+          const hoursWorked = weekEntries.reduce((s,e) => s + e.hours, 0);
+          const weekGross = weekEntries.reduce((s,e) => s + grossForEntry(e), 0);
+          const netVal = netPayByWeek[w];
+          return `
+            <tr data-week="${w}">
+              <td>${fmtShort(w)} – ${fmtShort(shiftDate(w,6))}</td>
+              <td class="num-cell">${hoursWorked.toFixed(2)}h</td>
+              <td class="num-cell">${fmtMoney(weekGross)}</td>
+              <td class="net-cell">
+                <input type="number" step="0.01" min="0" class="net-input" value="${netVal !== undefined ? netVal : ''}" placeholder="0.00">
+                <button class="net-save" data-week="${w}">Save</button>
+              </td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function showError(msg) {
+  document.getElementById('errorBanner').innerHTML = msg ? `<div class="error-note">${msg}</div>` : '';
+}
+function showPinLock(errorMsg) {
+  document.getElementById('pinOverlay').style.display = 'flex';
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('pinError').textContent = errorMsg || '';
+  const input = document.getElementById('pinInput');
+  input.value = '';
+  setTimeout(() => input.focus(), 50);
+}
+function unlockApp() {
+  document.getElementById('pinOverlay').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+}
+function handleUnauthorized() {
+  localStorage.removeItem(PIN_KEY);
+  pin = null;
+  showPinLock('Incorrect PIN — try again.');
+}
+
+async function loadAll() {
+  if (!pin) { showPinLock(); return; }
+  try {
+    const [entRes, rateRes, netRes] = await Promise.all([
+      fetch(`${ENTRIES_API}?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`),
+      fetch(`${RATES_API}?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`),
+      fetch(`${NETPAY_API}?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`)
+    ]);
+    if (entRes.status === 401 || rateRes.status === 401 || netRes.status === 401) { handleUnauthorized(); return; }
+    if (!entRes.ok || !rateRes.ok || !netRes.ok) throw new Error('bad response');
+    entries = await entRes.json();
+    rates = await rateRes.json();
+    netPayByWeek = await netRes.json();
+    localStorage.setItem(PIN_KEY, pin);
+    unlockApp();
+    showError('');
+    render();
+  } catch (e) {
+    showError('Could not load income data — check your connection.');
+  }
+}
+
+document.getElementById('pinForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const val = document.getElementById('pinInput').value.trim();
+  if (!val) return;
+  pin = val;
+  await loadAll();
+});
+
+document.getElementById('periodRow').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('.period-btn');
+  if (!btn) return;
+  currentPeriod = btn.dataset.period;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.toggle('active', b === btn));
+  document.getElementById('customRow').classList.toggle('show', currentPeriod === 'custom');
+  render();
+});
+
+['customFrom', 'customTo'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => { if (currentPeriod === 'custom') render(); });
+});
+
+document.getElementById('weeklyTableWrap').addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('.net-save');
+  if (!btn) return;
+  const week = btn.dataset.week;
+  const row = btn.closest('tr');
+  const input = row.querySelector('.net-input');
+  const amount = Number(input.value);
+  if (!Number.isFinite(amount) || amount < 0) {
+    input.focus();
+    return;
+  }
+  btn.textContent = 'Saving…';
+  btn.disabled = true;
+  try {
+    const res = await fetch(NETPAY_API, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ user: syncCode, pin, weekMonday: week, amount })
+    });
+    if (res.status === 401) { handleUnauthorized(); return; }
+    if (!res.ok) throw new Error('save failed');
+    netPayByWeek[week] = amount;
+    btn.textContent = 'Saved';
+    btn.classList.add('saved');
+    render();
+  } catch (e) {
+    btn.textContent = 'Failed';
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = 'Save'; btn.classList.remove('saved'); }, 1500);
+  }
+});
+
+// default period button state
+document.querySelector(`.period-btn[data-period="${currentPeriod}"]`).classList.add('active');
+document.getElementById('customFrom').value = todayStr();
+document.getElementById('customTo').value = todayStr();
+
+// ---- boot ----
+pin = localStorage.getItem(PIN_KEY);
+if (pin) {
+  loadAll();
+} else {
+  showPinLock();
+}
+</script>
+</body>
+</html>
