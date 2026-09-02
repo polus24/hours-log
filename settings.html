@@ -217,6 +217,31 @@
     <div class="save-status" id="saveStatus"></div>
   </form>
 
+  <header style="margin-top:32px;">
+    <div class="eyebrow">Settings</div>
+    <h1>PAY RATES</h1>
+    <p class="sub">Used to calculate gross income on the Income page. Rates apply by day type — weekday, Saturday, Sunday, or a shift you've marked as a public holiday when logging it.</p>
+  </header>
+
+  <form id="ratesForm">
+    <div class="panel">
+      <div class="sem-row">
+        <div class="sem-fields">
+          <div class="field"><label for="rateWeekday">Weekday ($/hr)</label><input type="number" id="rateWeekday" step="0.01" min="0" max="1000" placeholder="0.00"></div>
+          <div class="field"><label for="rateSaturday">Saturday ($/hr)</label><input type="number" id="rateSaturday" step="0.01" min="0" max="1000" placeholder="0.00"></div>
+        </div>
+      </div>
+      <div class="sem-row">
+        <div class="sem-fields">
+          <div class="field"><label for="rateSunday">Sunday ($/hr)</label><input type="number" id="rateSunday" step="0.01" min="0" max="1000" placeholder="0.00"></div>
+          <div class="field"><label for="ratePublicHoliday">Public holiday ($/hr)</label><input type="number" id="ratePublicHoliday" step="0.01" min="0" max="1000" placeholder="0.00"></div>
+        </div>
+      </div>
+    </div>
+    <button type="submit" class="save-btn" id="saveRatesBtn">Save pay rates</button>
+    <div class="save-status" id="saveRatesStatus"></div>
+  </form>
+
 </div>
 </div>
 
@@ -332,10 +357,62 @@ document.getElementById('semesterForm').addEventListener('submit', async (ev) =>
   }
 });
 
+// ---- pay rates ----
+const RATES_API = '/api/rates';
+const RATE_FIELDS = { weekday: 'rateWeekday', saturday: 'rateSaturday', sunday: 'rateSunday', publicHoliday: 'ratePublicHoliday' };
+
+async function loadRates() {
+  try {
+    const res = await fetch(`${RATES_API}?user=${encodeURIComponent(syncCode)}&pin=${encodeURIComponent(pin)}`);
+    if (res.status === 401) { handleUnauthorized(); return; }
+    if (!res.ok) throw new Error('bad response');
+    const data = await res.json();
+    for (const [field, inputId] of Object.entries(RATE_FIELDS)) {
+      document.getElementById(inputId).value = data[field] || '';
+    }
+  } catch (e) {
+    // leave fields blank — user can still re-enter and save
+  }
+}
+
+document.getElementById('ratesForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const rates = {};
+  for (const [field, inputId] of Object.entries(RATE_FIELDS)) {
+    rates[field] = Number(document.getElementById(inputId).value) || 0;
+  }
+
+  const btn = document.getElementById('saveRatesBtn');
+  const status = document.getElementById('saveRatesStatus');
+  btn.disabled = true;
+  status.classList.remove('error');
+  status.textContent = 'Saving…';
+  try {
+    const res = await fetch(RATES_API, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ user: syncCode, pin, rates })
+    });
+    if (res.status === 401) { handleUnauthorized(); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'save failed');
+    }
+    status.textContent = 'Saved.';
+    status.classList.remove('error');
+  } catch (e) {
+    status.textContent = e.message && e.message !== 'save failed' ? e.message : 'Could not save — check your connection and try again.';
+    status.classList.add('error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ---- boot ----
 pin = localStorage.getItem(PIN_KEY);
 if (pin) {
   loadSemesters();
+  loadRates();
 } else {
   showPinLock();
 }
