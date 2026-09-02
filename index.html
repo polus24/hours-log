@@ -115,6 +115,11 @@
 
   form.entry-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
   .break-field { max-width: 110px; }
+  .ph-check {
+    display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: rgba(243,238,221,0.7);
+    order: 4; width: 100%; margin: 2px 0 2px;
+  }
+  .ph-check input { width: 16px; height: 16px; accent-color: var(--amber); }
   .computed-hours {
     font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: rgba(243,238,221,0.55);
     width: 100%; order: 5; min-height: 16px;
@@ -160,7 +165,8 @@
   .entry-row { display: flex; align-items: center; justify-content: space-between; background: var(--ink-navy-3); border-radius: 8px; padding: 9px 12px; }
   .entry-row .date-txt { font-size: 13px; font-weight: 500; display: flex; flex-direction: column; gap: 2px; }
   .entry-row .time-sub { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(243,238,221,0.45); font-weight: 400; }
-  .entry-row .hrs { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 14px; color: var(--tally-green); margin-right: 12px; }
+  .entry-row .hrs { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 14px; color: var(--tally-green); margin-right: 12px; text-align: right; }
+  .entry-row .hrs-cap { display: block; font-size: 10.5px; font-weight: 400; color: rgba(243,238,221,0.4); }
   .entry-row .row-right { display: flex; align-items: center; }
   .del-btn { background: none; border: none; color: rgba(243,238,221,0.4); cursor: pointer; font-size: 16px; line-height: 1; padding: 4px 6px; }
   .del-btn:hover { color: var(--rule-red); }
@@ -249,10 +255,10 @@
   .rpt-table tr.over-row td { color: var(--rule-red); font-weight: 600; }
 
   /* detail table column widths so times/hours never collide */
-  .rpt-detail col.c-date { width: 42%; }
-  .rpt-detail col.c-time { width: 26%; }
+  .rpt-detail col.c-date { width: 30%; }
+  .rpt-detail col.c-time { width: 22%; }
   .rpt-detail col.c-break { width: 14%; }
-  .rpt-detail col.c-hours { width: 18%; }
+  .rpt-detail col.c-hours { width: 17%; }
   .rpt-detail .time-cell { font-family: 'IBM Plex Mono', monospace; font-size: 12px; white-space: nowrap; }
 
   .rpt-week { margin-bottom: 22px; }
@@ -360,6 +366,10 @@
         <label for="breakInput">Break (min)</label>
         <input type="number" id="breakInput" step="5" min="0" max="600" placeholder="30" value="0">
       </div>
+      <label class="ph-check">
+        <input type="checkbox" id="phInput">
+        <span>Public holiday</span>
+      </label>
       <div class="computed-hours" id="computedHours"></div>
       <button type="submit" class="add-btn" id="addBtn">Add</button>
     </form>
@@ -399,6 +409,8 @@
   <footer>
     Open this same link on any phone or PC — everyone sees the same log automatically.<br>
     <a href="/settings.html" style="color:rgba(243,238,221,0.4); text-decoration:underline;">Uni semester dates</a>
+    &nbsp;·&nbsp;
+    <a href="/income.html" style="color:rgba(243,238,221,0.4); text-decoration:underline;">Income</a>
   </footer>
 </div>
 </div>
@@ -506,6 +518,23 @@ function dailyTotals() {
   return map;
 }
 
+// The full shift span (start to finish), break included — this is what
+// counts toward the 48h fortnight cap, since an unpaid break doesn't
+// shrink the elapsed time the course-work-hour condition cares about.
+// Falls back to the stored (net) hours for any old entry that somehow
+// has no start/finish recorded, rather than silently dropping it.
+function spanHoursOf(e) {
+  if (!e.start || !e.finish) return e.hours;
+  const span = computeHours(e.start, e.finish, 0);
+  return span === null ? e.hours : span;
+}
+
+function dailySpanTotals() {
+  const map = {};
+  for (const e of entries) map[e.date] = (map[e.date] || 0) + spanHoursOf(e);
+  return map;
+}
+
 function weekTotal(mondayStr, map) {
   let sum = 0;
   for (let i = 0; i < 7; i++) sum += map[shiftDate(mondayStr, i)] || 0;
@@ -553,7 +582,10 @@ function buildStrip(container, mondayStr, map) {
 }
 
 function render() {
-  const map = dailyTotals();
+  // Everything about the 48h cap (gauge, remaining hours, week strips,
+  // breach banner) uses the full shift span — break included — per the
+  // visa condition. Gross pay elsewhere uses actual worked hours instead.
+  const map = dailySpanTotals();
   const today = todayStr();
   const curMonday = mondayOf(today);
   const prevMonday = shiftDate(curMonday, -7);
@@ -586,8 +618,8 @@ function render() {
   fill.style.background = fortnightTotal > 48 ? 'var(--rule-red)' : (fortnightTotal >= 40 ? 'var(--amber)' : 'var(--tally-green)');
 
   document.getElementById('gaugeNote').textContent = fortnightTotal === 0
-    ? 'No hours logged this fortnight.'
-    : `${fortnightTotal.toFixed(1)}h combined across the previous and current week.`;
+    ? 'No hours logged this fortnight. Includes unpaid breaks, as required for the cap.'
+    : `${fortnightTotal.toFixed(1)}h combined across the previous and current week. Includes unpaid breaks, as required for the cap.`;
 
   // Big remaining-hours readout
   const remBlock = document.getElementById('remainingBlock');
@@ -619,8 +651,12 @@ function render() {
     const sorted = [...entries].sort((a,b) => b.date.localeCompare(a.date));
     list.innerHTML = sorted.map(e => {
       const timeLine = (e.start && e.finish)
-        ? `${e.start}–${e.finish}${e.breakMinutes ? ` (${e.breakMinutes}m break)` : ''}`
-        : '';
+        ? `${e.start}–${e.finish}${e.breakMinutes ? ` (${e.breakMinutes}m break)` : ''}${e.isPublicHoliday ? ' · Public holiday' : ''}`
+        : (e.isPublicHoliday ? 'Public holiday' : '');
+      const span = spanHoursOf(e);
+      const hrsLabel = (e.breakMinutes && span !== e.hours)
+        ? `${e.hours.toFixed(2).replace(/\.?0+$/,'')}h <span class="hrs-cap">(${span.toFixed(2).replace(/\.?0+$/,'')}h toward cap)</span>`
+        : `${e.hours.toFixed(2).replace(/\.?0+$/,'')}h`;
       return `
       <div class="entry-row" data-id="${e.id}">
         <span class="date-txt">
@@ -628,7 +664,7 @@ function render() {
           ${timeLine ? `<span class="time-sub">${timeLine}</span>` : ''}
         </span>
         <div class="row-right">
-          <span class="hrs">${e.hours.toFixed(2).replace(/\.?0+$/,'')}h</span>
+          <span class="hrs">${hrsLabel}</span>
           <button class="del-btn" data-id="${e.id}" aria-label="Delete entry">✕</button>
         </div>
       </div>
@@ -681,12 +717,12 @@ async function loadEntries() {
   render();
 }
 
-async function addEntry(date, start, finish, breakMinutes, hours) {
+async function addEntry(date, start, finish, breakMinutes, hours, isPublicHoliday) {
   try {
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ user: syncCode, pin, date, start, finish, breakMinutes, hours })
+      body: JSON.stringify({ user: syncCode, pin, date, start, finish, breakMinutes, hours, isPublicHoliday })
     });
     if (res.status === 401) { handleUnauthorized(); return; }
     if (!res.ok) throw new Error('bad response');
@@ -742,14 +778,16 @@ document.getElementById('entryForm').addEventListener('submit', async (ev) => {
   const start = document.getElementById('startInput').value;
   const finish = document.getElementById('finishInput').value;
   const breakMinutes = Number(document.getElementById('breakInput').value) || 0;
+  const isPublicHoliday = document.getElementById('phInput').checked;
   const hours = computeHours(start, finish, breakMinutes);
   if (!date || hours === null || hours <= 0 || hours > 24) return;
   document.getElementById('addBtn').disabled = true;
-  await addEntry(date, start, finish, breakMinutes, hours);
+  await addEntry(date, start, finish, breakMinutes, hours, isPublicHoliday);
   document.getElementById('addBtn').disabled = false;
   document.getElementById('startInput').value = '';
   document.getElementById('finishInput').value = '';
   document.getElementById('breakInput').value = '0';
+  document.getElementById('phInput').checked = false;
   updateComputedPreview();
 });
 
@@ -798,7 +836,10 @@ function populateWeekSelects() {
 
 // ---- export: build & show report ----
 function buildReport(fromMonday, toMonday, mode) {
-  const map = dailyTotals();
+  // Weekly/fortnight totals use the span-based (break-included) map, since
+  // this report exists to demonstrate visa cap compliance — matching the
+  // same figures shown on the main dashboard.
+  const map = dailySpanTotals();
   const weeks = [];
   let cursor = fromMonday;
   while (cursor <= toMonday) { weeks.push(cursor); cursor = shiftDate(cursor, 7); }
@@ -830,16 +871,17 @@ function buildReport(fromMonday, toMonday, mode) {
             const timeTxt = (e.start && e.finish) ? `${e.start}–${e.finish}` : '—';
             const breakTxt = e.breakMinutes ? `${e.breakMinutes}m` : '—';
             const dayTxt = parseDate(e.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
-            return `<tr><td>${dayTxt}</td><td class="time-cell">${timeTxt}</td><td class="num-cell">${breakTxt}</td><td class="num-cell">${e.hours.toFixed(2)}h</td></tr>`;
+            const span = spanHoursOf(e);
+            return `<tr><td>${dayTxt}</td><td class="time-cell">${timeTxt}</td><td class="num-cell">${breakTxt}</td><td class="num-cell">${e.hours.toFixed(2)}h</td><td class="num-cell">${span.toFixed(2)}h</td></tr>`;
           }).join('')
-        : `<tr><td colspan="4" class="muted-cell">No entries this week.</td></tr>`;
+        : `<tr><td colspan="5" class="muted-cell">No entries this week.</td></tr>`;
       const total = weekTotal(w, map);
       return `
         <div class="rpt-week">
           <div class="rpt-week-head"><span>${fmtShort(w)} – ${fmtShort(shiftDate(w,6))}</span><span class="rpt-week-total">${total.toFixed(2)}h</span></div>
           <table class="rpt-table rpt-detail">
-            <colgroup><col class="c-date"><col class="c-time"><col class="c-break"><col class="c-hours"></colgroup>
-            <thead><tr><th>Date</th><th>Time</th><th class="num-cell">Break</th><th class="num-cell">Hours</th></tr></thead>
+            <colgroup><col class="c-date"><col class="c-time"><col class="c-break"><col class="c-hours"><col class="c-hours"></colgroup>
+            <thead><tr><th>Date</th><th>Time</th><th class="num-cell">Break</th><th class="num-cell">Worked</th><th class="num-cell">Toward cap</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>`;
